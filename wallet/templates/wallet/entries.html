@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Wallet Entries{% endblock %}
+{% block content %}
+<h3>Wallet Entries</h3>
+<table class="table">
+    <thead>
+        <tr><th>Platform</th><th>Amount</th><th>Date</th></tr>
+    </thead>
+    <tbody>
+        {% for entry in entries %}
+        <tr><td>{{ entry.platform }}</td><td>{{ entry.amount }}</td><td>{{ entry.transaction_date }}</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

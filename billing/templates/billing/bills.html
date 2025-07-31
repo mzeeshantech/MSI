@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Bills{% endblock %}
+{% block content %}
+<h3>Bills</h3>
+<table class="table table-bordered">
+    <thead>
+        <tr><th>ID</th><th>Customer</th><th>Total</th><th>Paid</th><th>Discount</th></tr>
+    </thead>
+    <tbody>
+        {% for bill in bills %}
+        <tr>
+            <td><a href="/billing/bills/{{ bill.id }}/">#{{ bill.id }}</a></td>
+            <td>{{ bill.customer.name }}</td>
+            <td>{{ bill.total_amount }}</td>
+            <td>{{ bill.amount_paid }}</td>
+            <td>{{ bill.discount }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

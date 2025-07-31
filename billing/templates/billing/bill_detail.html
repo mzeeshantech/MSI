@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Bill Detail{% endblock %}
+{% block content %}
+<h3>Bill #{{ bill.id }}</h3>
+<p><strong>Customer:</strong> {{ bill.customer.name }}</p>
+<p><strong>Total:</strong> {{ bill.total_amount }}</p>
+<p><strong>Paid:</strong> {{ bill.amount_paid }}</p>
+<p><strong>Discount:</strong> {{ bill.discount }}</p>
+<h5>Items</h5>
+<table class="table">
+    <thead>
+        <tr><th>Item</th><th>Qty</th><th>Unit Price</th></tr>
+    </thead>
+    <tbody>
+        {% for item in bill.items.all %}
+        <tr>
+            <td>{{ item.item.name }}</td><td>{{ item.quantity }}</td><td>{{ item.price_per_unit }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

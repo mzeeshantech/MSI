@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Employee Advances{% endblock %}
+{% block content %}
+<h3>Employee Advances</h3>
+<table class="table">
+    <thead>
+        <tr><th>Name</th><th>Amount</th><th>Date</th><th>Paid Back</th></tr>
+    </thead>
+    <tbody>
+        {% for adv in advances %}
+        <tr><td>{{ adv.employee_name }}</td><td>{{ adv.amount }}</td><td>{{ adv.date_given }}</td><td>{{ adv.paid_back }}</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

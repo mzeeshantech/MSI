@@ -37,7 +37,15 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "inventory",
+    "django.contrib.humanize",
+
+    # Your custom apps
+    "stock",
+    "billing",
+    "expenses",
+    "employees",
+    "reports",
+    "wallet",
 ]
 
 MIDDLEWARE = [
@@ -55,8 +63,8 @@ ROOT_URLCONF = "MSI.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
-        "APP_DIRS": True,
+        'DIRS': [BASE_DIR / "templates"],  # for global templates like base.html
+        'APP_DIRS': True, 
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.debug",
@@ -77,9 +85,9 @@ WSGI_APPLICATION = "MSI.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "your_database_name",
-        "USER": "your_database_user",
-        "PASSWORD": "your_database_password",
+        "NAME": "msi",
+        "USER": "postgres",
+        "PASSWORD": "1234",
         "HOST": "localhost",
         "PORT": "5432",
     }
@@ -120,7 +128,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = "static/"
+STATIC_URL = '/static/'
+
+STATICFILES_DIRS = [
+    BASE_DIR / "static",  # for your global static files
+]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field

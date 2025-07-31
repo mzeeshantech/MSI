@@ -1,0 +1,780 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Inventory Items{% endblock %}
+
+{% block extra_head %}
+    <link href="{% static 'css/boxicons.min.css' %}" rel="stylesheet">
+    <link href="{% static 'css/css2.css' %}" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #333;
+            display: flex;
+            align-items: center;
+        }
+
+        .header h1 i { margin-right: 8px; }
+
+        .search-bar {
+            width: 200px;
+            margin-right: 10px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid #ced4da;
+        }
+
+        .btn-custom {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-custom:hover { background-color: #0056b3; }
+
+        table {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            vertical-align: middle;
+            font-size: 14px;
+            color: #444;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        th i {
+            margin-right: 5px;
+            color: #007bff;
+        }
+
+        .pagination {
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .black-color { color: black !important; }
+
+        .modal-content {
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+        }
+
+        .modal-header, .modal-footer {
+            background-color: #f8f9fa;
+            border-bottom: none;
+            border-top: none;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-body .row, .modal-body .mb-3 {
+            margin-bottom: 15px;
+        }
+
+        .form-label i { margin-right: 5px; }
+
+        .form-label.text-primary { color: #007bff; }
+        .form-label.text-success { color: #28a745; }
+        .form-label.text-warning { color: #ffc107; }
+        .form-label.text-info { color: #17a2b8; }
+        .form-label.text-secondary, .form-label.text-muted { color: #6c757d; }
+
+        .form-control[readonly] {
+            background-color: #e9ecef;
+            opacity: 1;
+        }
+
+        .btn-success {
+            background-color: #28a745;
+            border-color: #28a745;
+            padding: 8px 20px;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-success:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            border-color: #dc3545;
+            padding: 8px 20px;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-danger:hover {
+            background-color: #c82333;
+            border-color: #bd2130;
+        }
+
+        .btn i { margin-right: 5px; }
+
+        .was-validated .form-control:invalid {
+            border-color: #dc3545;
+            background-image: none;
+        }
+
+        .was-validated .form-control:invalid:focus {
+            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+        }
+
+        .invalid-feedback {
+            display: none;
+            width: 100%;
+            margin-top: 0.25rem;
+            font-size: 0.875em;
+            color: #dc3545;
+        }
+
+        .was-validated .form-control:invalid ~ .invalid-feedback {
+            display: block;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        .action-btn {
+            width: 36px;
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 14px;
+            padding: 0;
+            border: none;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .action-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .restore-item-btn {
+            color: white !important;
+        }
+
+        .btn-edit {
+            background-color: #0d6efd;
+            color: white;
+        }
+        .btn-edit:hover {
+            background-color: #0b5ed7;
+            transform: scale(1.05);
+        }
+
+        .btn-delete {
+            background-color: #dc3545;
+            color: white;
+        }
+        .btn-delete:hover {
+            background-color: #bb2d3b;
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 768px) {
+            .modal-dialog { margin: 0.5rem; }
+            .modal-body .mb-3 { margin-bottom: 10px; }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid">
+        <div class="header">
+            <h1><i class="fas fa-boxes"></i> Items Stock</h1>
+            <div class="d-flex align-items-center">
+                <select class="form-select me-2" id="categorySelect" name="category_id" style="width: 200px;">
+                    <option value="" selected disabled>Select Category</option>
+                    {% for category in categories %}
+                        <option value="{{ category.id }}">{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+                <input type="text" class="search-bar" id="itemSearch" name="item_name" placeholder="Search by name or SKU...">
+                <button type="button" class="btn btn-add ms-2" data-bs-toggle="modal" data-bs-target="#addItemModal" onclick="resetItemForm()">
+                    <i class="fas fa-plus"></i> Add New Item
+                </button>
+                <button type="button" class="btn btn-export ms-2" id="downloadExcelBtn">
+                    <i class="fas fa-file-export"></i> Export
+                </button>
+            </div>
+        </div>
+
+        <div id="search-results">
+            {% if items %}
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th><strong><i class="fas fa-barcode black-color"></i> SKU</strong></th>
+                            <th><strong><i class="fas fa-box black-color"></i> Name</strong></th>
+                            <th><strong><i class="fas fa-layer-group black-color"></i> Category</strong></th>
+                            <th><strong><i class="fas fa-cubes black-color"></i> Total Stock</strong></th>
+                            <th><strong><i class="fas fa-balance-scale black-color"></i> UoM</strong></th>
+                            <th><strong><i class="fas fa-money-bill-wave black-color"></i> Sale Price</strong></th>
+                            <th><strong><i class="fas fa-edit black-color"></i> Action</strong></th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemTableBody">
+                        {% for item in items %}
+                            <tr>
+                                <td>{{ item.sku }}</td>
+                                <td>{{ item.name }}</td>
+                                <td>{{ item.category.name }}</td>
+                                <td class="{% if item.total_stock_quantity < 10 %}text-danger{% endif %}">{{ item.total_stock_quantity }}</td>
+                                <td>{{ item.get_unit_of_measure_display }}</td>
+                                <td>Rs. {{ item.sale_price|floatformat:"2"|intcomma }}</td>
+                                <td class="action-buttons">
+                                    <a href="#" class="btn btn-sm btn-info action-btn restore-item-btn" data-id="{{ item.id }}" title="Restore Item">
+                                        <i class="fas fa-undo"></i>
+                                    </a>
+                                    <a href="#" class="btn btn-sm btn-primary action-btn edit-item" data-id="{{ item.id }}" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-danger action-btn delete-item-btn" data-id="{{ item.id }}" title="Delete">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                    <a href="#" class="btn btn-sm btn-secondary action-btn history-item-btn" data-id="{{ item.id }}" title="History">
+                                        <i class="fas fa-history"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% include 'stock/pagination.html' with current_page=current_page total_pages=total_pages %}
+            {% else %}
+                <p class="text-center">No items found.</p>
+            {% endif %}
+        </div>
+
+        <!-- Add New Item Modal -->
+        <div class="modal fade" id="addItemModal" tabindex="-1" aria-labelledby="addItemModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <form id="itemForm" action="{% url 'stock_items' %}" method="POST" class="needs-validation" novalidate>
+                    {% csrf_token %}
+                    <input type="hidden" name="item_id" id="item_id">
+                    <div class="modal-content">
+                        <div class="modal-header bg-light">
+                            <h5 class="modal-title" id="addItemModalLabel"><i class="fas fa-plus-circle"></i> Add New Item</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body p-4">
+                            {% include '_messages.html' %}
+                            <div class="row row-cols-1 row-cols-md-2 g-3">
+                                <div class="col">
+                                    <div class="mb-3">
+                                        <label for="name" class="form-label text-primary"><i class="fas fa-box"></i> Name <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="name" name="name" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="sku" class="form-label text-info"><i class="fas fa-barcode"></i> SKU <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="sku" name="sku" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="category" class="form-label text-primary"><i class="fas fa-layer-group"></i> Category <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="category" name="category" required>
+                                            {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="mb-3">
+                                        <label for="unit_of_measure" class="form-label text-secondary"><i class="fas fa-balance-scale"></i> Unit of Measure</label>
+                                        <select class="form-select" id="unit_of_measure" name="unit_of_measure">
+                                            {% for val, display in unit_of_measure_choices %}
+                                                <option value="{{ val }}">{{ display }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="is_sold_in_kgs" name="is_sold_in_kgs">
+                                        <label class="form-check-label" for="is_sold_in_kgs">Sold in KGs</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer bg-light">
+                            <button type="submit" class="btn btn-success"><i class="fas fa-check"></i> Save</button>
+                            <button type="button" class="btn btn-danger" data-bs-dismiss="modal"><i class="fas fa-times"></i> Cancel</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Restore Item Modal -->
+        <div class="modal fade" id="restoreItemModal" tabindex="-1" aria-labelledby="restoreItemModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <form id="restoreItemForm" action="{% url 'restore_item' %}" method="POST" class="needs-validation" novalidate>
+                    {% csrf_token %}
+                    <input type="hidden" name="item_id" id="restore_item_id">
+                    <div class="modal-content">
+                        <div class="modal-header bg-light">
+                            <h5 class="modal-title" id="restoreItemModalLabel"><i class="fas fa-undo"></i> Restore Item</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body p-4">
+                            <div class="row row-cols-1 row-cols-md-2 g-3">
+                                <div class="col">
+                                    <div class="mb-3">
+                                        <label for="restore_sku" class="form-label text-info"><i class="fas fa-barcode"></i> SKU</label>
+                                        <input type="text" class="form-control" id="restore_sku" readonly>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="restore_category" class="form-label text-primary"><i class="fas fa-layer-group"></i> Category</label>
+                                        <input type="text" class="form-control" id="restore_category" readonly>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="restore_quantity" class="form-label text-warning"><i class="fas fa-cubes"></i> Quantity <span class="text-danger">*</span></label>
+                                        <input type="number" class="form-control" id="restore_quantity" name="quantity" required min="1">
+                                        <div class="invalid-feedback">Please enter the quantity.</div>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="mb-3">
+                                        <label for="restore_unit_price" class="form-label text-success"><i class="fas fa-money-bill-wave"></i> Purchase Price/Unit <span class="text-danger">*</span></label>
+                                        <input type="number" step="0.01" class="form-control" id="restore_unit_price" name="unit_price" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="restore_retail_price_per_unit" class="form-label text-success"><i class="fas fa-tag"></i> Retail Price/Unit <span class="text-danger">*</span></label>
+                                        <input type="number" step="0.01" class="form-control" id="restore_retail_price_per_unit" name="retail_price_per_unit" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="restore_expiry_date" class="form-label text-secondary"><i class="fas fa-calendar-times"></i> Expiry Date</label>
+                                <input type="date" class="form-control" id="restore_expiry_date" name="expiry_date">
+                            </div>
+                        </div>
+                        <div class="modal-footer bg-light">
+                            <button type="submit" class="btn btn-success"><i class="fas fa-check"></i> Restore</button>
+                            <button type="button" class="btn btn-danger" data-bs-dismiss="modal"><i class="fas fa-times"></i> Cancel</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- History Modal -->
+        <div class="modal fade" id="historyModal" tabindex="-1" aria-labelledby="historyModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title" id="historyModalLabel"><i class="fas fa-history"></i> Item History: <span id="historyItemName"></span></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="d-flex justify-content-end mb-3">
+                            <button type="button" class="btn btn-export" id="downloadHistoryExcelBtn">
+                                <i class="fas fa-file-export"></i> Download History as Excel
+                            </button>
+                        </div>
+                        <div id="historyTableContainer">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Quantity</th>
+                                        <th>Purchase Price</th>
+                                        <th>Retail Price</th>
+                                        <th>Supplier</th>
+                                        <th>Expiry Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyTableBody">
+                                    <!-- History items will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal"><i class="fas fa-times"></i> Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_scripts %}
+    <script src="{% static 'js/bootstrap.bundle.min.js' %}" crossorigin="anonymous"></script>
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        function resetItemForm() {
+            const form = document.querySelector("#addItemModal form");
+            form.reset();
+            document.getElementById("item_id").value = "";
+            document.getElementById("addItemModalLabel").innerHTML = '<i class="fas fa-plus-circle"></i> Add New Item';
+            form.classList.remove('was-validated');
+        }
+
+        function renderItems(response) {
+            const items = response.items;
+            let tableBody = $('#itemTableBody');
+            tableBody.empty();
+
+            if (items.length > 0) {
+                items.forEach(item => {
+                    tableBody.append(`
+                        <tr>
+                            <td>${item.sku}</td>
+                            <td>${item.name}</td>
+                            <td>${item.category_name}</td>
+                            <td class="${parseFloat(item.total_stock_quantity) > 0 ? 'text-success' : ''}">${item.total_stock_quantity}</td>
+                            <td>${item.unit_of_measure}</td>
+                            <td>Rs. ${parseFloat(item.sale_price).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td class="action-buttons">
+                                <a href="#" class="btn btn-sm btn-info action-btn restore-item-btn" data-id="${item.id}" title="Restore Item">
+                                    <i class="fas fa-undo"></i>
+                                </a>
+                                <a href="#" class="btn btn-sm btn-primary action-btn edit-item" data-id="${item.id}" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-danger action-btn delete-item-btn" data-id="${item.id}" title="Delete">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                <a href="#" class="btn btn-sm btn-secondary action-btn history-item-btn" data-id="${item.id}" title="History">
+                                    <i class="fas fa-history"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    `);
+                });
+                $('.pagination').replaceWith(response.pagination_html);
+            } else {
+                tableBody.append('<tr><td colspan="6" class="text-center">No items found.</td></tr>');
+                $('.pagination').empty();
+            }
+        }
+
+        function fetchData(url) {
+            $.ajax({
+                url: url,
+                method: 'GET',
+                success: function(response) {
+                    renderItems(response);
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX Error: ', status, error);
+                }
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            // AJAX search and filter
+            $('#itemSearch, #categorySelect').on('keyup change', function() {
+                const searchTerm = $('#itemSearch').val();
+                const categoryId = $('#categorySelect').val();
+                const url = new URL("{% url 'stock_items' %}", window.location.origin);
+                if (searchTerm) {
+                    url.searchParams.append('item_name', searchTerm);
+                }
+                if (categoryId) {
+                    url.searchParams.append('category_id', categoryId);
+                }
+                fetchData(url);
+            });
+
+            // Handle pagination via AJAX
+            $(document).on('click', '.pagination a', function(e) {
+                e.preventDefault();
+                const url = $(this).attr('href');
+                fetchData(url);
+            });
+
+            // Handle form submission for Add/Edit Item via AJAX
+            const itemForm = document.getElementById('itemForm');
+            itemForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                if (!itemForm.checkValidity()) {
+                    event.stopPropagation();
+                    itemForm.classList.add('was-validated');
+                    return;
+                }
+
+                const formData = new FormData(itemForm);
+                fetch(itemForm.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrftoken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const addItemModal = bootstrap.Modal.getInstance(document.getElementById('addItemModal'));
+                        addItemModal.hide();
+                        location.reload(); // Reload the page after successful save
+                    } else {
+                        alert("Error: " + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while saving the item.');
+                });
+            });
+
+            // Edit item
+            $('#itemTableBody').on('click', '.edit-item', function (e) {
+                e.preventDefault();
+                const itemId = $(this).data('id');
+                
+                fetch(`/item_detail/${itemId}/`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+                    document.getElementById("item_id").value = data.id;
+                    document.getElementById("name").value = data.name;
+                    document.getElementById("sku").value = data.sku;
+                    document.getElementById("category").value = data.category_id;
+                    document.getElementById("unit_of_measure").value = data.unit_of_measure;
+                    document.getElementById("is_sold_in_kgs").checked = data.is_sold_in_kgs;
+
+                    // Remove fields not present in the new Add/Edit form
+                    const stockQuantityField = document.getElementById("stock_quantity");
+                    if (stockQuantityField) stockQuantityField.remove();
+                    const unitPriceField = document.getElementById("unit_price");
+                    if (unitPriceField) unitPriceField.remove();
+                    const retailPriceField = document.getElementById("retail_price_per_unit");
+                    if (retailPriceField) retailPriceField.remove();
+                    const supplierField = document.getElementById("supplier");
+                    if (supplierField) supplierField.remove();
+                    const expiryDateField = document.getElementById("expiry_date");
+                    if (expiryDateField) expiryDateField.remove();
+
+                    document.getElementById("addItemModalLabel").innerHTML = `<i class="fas fa-edit"></i> Edit Item`;
+                    const modal = new bootstrap.Modal(document.getElementById('addItemModal'));
+                    modal.show();
+                })
+                .catch(err => console.error(err));
+            });
+
+            // Restore item
+            $('#itemTableBody').on('click', '.restore-item-btn', function (e) {
+                e.preventDefault();
+                const itemId = $(this).data('id');
+                
+                fetch(`/item_detail/${itemId}/`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+                    document.getElementById("restore_item_id").value = data.id;
+                    document.getElementById("restore_sku").value = data.sku;
+                    document.getElementById("restore_category").value = data.category_name;
+                    
+                    // Reset quantity, prices, supplier, expiry date for new input
+                    document.getElementById("restore_quantity").value = "";
+                    document.getElementById("restore_unit_price").value = "";
+                    document.getElementById("restore_retail_price_per_unit").value = "";
+                    document.getElementById("restore_expiry_date").value = "";
+
+                    const modal = new bootstrap.Modal(document.getElementById('restoreItemModal'));
+                    modal.show();
+                })
+                .catch(err => console.error(err));
+            });
+
+            // Handle form submission for Restore Item via AJAX
+            const restoreItemForm = document.getElementById('restoreItemForm');
+            restoreItemForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                if (!restoreItemForm.checkValidity()) {
+                    event.stopPropagation();
+                    restoreItemForm.classList.add('was-validated');
+                    return;
+                }
+
+                const formData = new FormData(restoreItemForm);
+                fetch(restoreItemForm.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrftoken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const restoreItemModal = bootstrap.Modal.getInstance(document.getElementById('restoreItemModal'));
+                        restoreItemModal.hide();
+                        location.reload(); // Reload the page after successful restore
+                    } else {
+                        alert("Error: " + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while restoring the item.');
+                });
+            });
+
+            // History item
+            $('#itemTableBody').on('click', '.history-item-btn', function (e) {
+                e.preventDefault();
+                const itemId = $(this).data('id');
+                
+                fetch(`/item_history/${itemId}/`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+                    document.getElementById("historyItemName").innerText = data.item_name;
+                    let historyTableBody = $('#historyTableBody');
+                    historyTableBody.empty();
+
+                    if (data.history.length > 0) {
+                        data.history.forEach(entry => {
+                            historyTableBody.append(`
+                                <tr>
+                                    <td>${new Date(entry.timestamp).toLocaleString()}</td>
+                                    <td class="${parseFloat(entry.quantity) > 0 ? 'text-success' : ''}">${parseFloat(entry.quantity) > 0 ? '+' : ''}${entry.quantity}</td>
+                                    <td>Rs. ${parseFloat(entry.unit_price).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                    <td>Rs. ${parseFloat(entry.retail_price_per_unit).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                    <td>${entry.supplier_name || 'N/A'}</td>
+                                    <td>${entry.expiry_date || 'N/A'}</td>
+                                </tr>
+                            `);
+                        });
+                    } else {
+                        historyTableBody.append('<tr><td colspan="6" class="text-center">No history found for this item.</td></tr>');
+                    }
+
+                    // Set data-item-id for excel download button
+                    document.getElementById("downloadHistoryExcelBtn").setAttribute("data-item-id", itemId);
+
+                    const modal = new bootstrap.Modal(document.getElementById('historyModal'));
+                    modal.show();
+                })
+                .catch(err => console.error(err));
+            });
+
+            // Download history excel file
+            document.getElementById("downloadHistoryExcelBtn").addEventListener("click", function() {
+                const itemId = this.getAttribute("data-item-id");
+                if (itemId) {
+                    fetch(`/stock/export_history/${itemId}/`)
+                        .then(response => {
+                            if (!response.ok) throw new Error('Network response was not ok');
+                            return response.blob();
+                        })
+                        .then(blob => {
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `item_${itemId}_history.xlsx`;
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                        })
+                        .catch(error => console.error('There was a problem with the fetch operation:', error));
+                }
+            });
+
+            // Delete item
+            $('#itemTableBody').on('click', '.delete-item-btn', function (e) {
+                const itemId = $(this).data('id');
+                const row = $(this).closest('tr');
+
+                if (confirm("Are you sure you want to delete this item?")) {
+                    fetch(`/delete_item/${itemId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrftoken,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            location.reload(); // Reload the page after successful deletion
+                        } else {
+                            alert("Error: " + data.error);
+                        }
+                    })
+                    .catch(err => console.error(err));
+                }
+            });
+
+            // Download excel file (for all items)
+            document.getElementById("downloadExcelBtn").addEventListener("click", function() {
+                fetch('/stock/export_items/')
+                    .then(response => {
+                        if (!response.ok) throw new Error('Network response was not ok');
+                        return response.blob();
+                    })
+                    .then(blob => {
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'stock_items.xlsx';
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                    })
+                    .catch(error => console.error('There was a problem with the fetch operation:', error));
+            });
+        });
+    </script>
+{% endblock %}
