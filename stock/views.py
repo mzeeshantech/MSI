@@ -37,7 +37,7 @@ def dashboard(request):
             'sale_price': str(item.sale_price),
         } for item in items_page]
         
-        pagination_html = render_to_string('stock/pagination.html', {'current_page': items_page, 'total_pages': items_page.paginator.num_pages})
+        pagination_html = render_to_string('stock/pagination.html', {'page_obj': items_page})
         return JsonResponse({'items': items_data, 'pagination_html': pagination_html})
 
     context = {
@@ -45,8 +45,7 @@ def dashboard(request):
         'categories': InventoryCategory.objects.all(),
         'suppliers': Supplier.objects.all(),
         'unit_of_measure_choices': InventoryItem.UNIT_OF_MEASURE_CHOICES,
-        'current_page': items_page.number,
-        'total_pages': items_page.paginator.num_pages,
+        'page_obj': items_page, # Pass the Page object directly
         'selected_page': 'dashboard'
     }
     return render(request, 'stock/dashboard.html', context)
@@ -64,11 +63,16 @@ def stock_items(request):
             'category': category,
             'unit_of_measure': request.POST.get('unit_of_measure'),
             'is_sold_in_kgs': 'is_sold_in_kgs' in request.POST,
+            'sale_price': request.POST.get('sale_price'), # Add sale_price
         }
 
         if item_id:
+            item = get_object_or_404(InventoryItem, pk=item_id)
+            # Only update sale_price. last_system_sale_price should only be updated by system actions (e.g., restore or initial creation).
             InventoryItem.objects.filter(pk=item_id).update(**item_data)
         else:
+            # For new items, set last_system_sale_price to the initial sale_price
+            item_data['last_system_sale_price'] = item_data['sale_price']
             InventoryItem.objects.create(**item_data)
         
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
@@ -87,7 +91,8 @@ def stock_items(request):
         items_list = items_list.filter(Q(name__icontains=search_term) | Q(sku__icontains=search_term))
 
     paginator = Paginator(items_list, 10)
-    page_number = request.GET.get('page')
+    page_number = request.GET.get('page', 1)
+
     try:
         items_page = paginator.page(page_number)
     except PageNotAnInteger:
@@ -104,7 +109,7 @@ def stock_items(request):
             'sale_price': str(item.sale_price),
         } for item in items_page]
         
-        pagination_html = render_to_string('stock/pagination.html', {'current_page': items_page, 'total_pages': items_page.paginator.num_pages})
+        pagination_html = render_to_string('stock/pagination.html', {'page_obj': items_page}) # Pass page_obj
         return JsonResponse({'items': items_data, 'pagination_html': pagination_html})
 
     context = {
@@ -112,8 +117,7 @@ def stock_items(request):
         'categories': InventoryCategory.objects.all(),
         'suppliers': Supplier.objects.all(),
         'unit_of_measure_choices': InventoryItem.UNIT_OF_MEASURE_CHOICES,
-        'current_page': items_page.number,
-        'total_pages': items_page.paginator.num_pages,
+        'page_obj': items_page, # Pass the Page object directly
         'selected_page': 'stock_items'
     }
     return render(request, 'stock/items.html', context)
@@ -130,6 +134,7 @@ def item_detail(request, item_id):
             'unit_of_measure': item.unit_of_measure,
             'is_sold_in_kgs': item.is_sold_in_kgs,
             'sale_price': str(item.sale_price),
+            'last_system_sale_price': str(item.last_system_sale_price), # Include last_system_sale_price
         }
         return JsonResponse(data)
     return redirect('stock_items')
@@ -160,11 +165,10 @@ def restore_item(request):
             expiry_date=expiry_date
         )
 
-        # Calculate average retail price and update sale_price
-        average_retail_price = item.history.aggregate(Avg('retail_price_per_unit'))['retail_price_per_unit__avg']
-        if average_retail_price is not None:
-            item.sale_price = average_retail_price
-            item.save()
+        # Set sale_price to the retail_price_per_unit provided in the restore form
+        item.sale_price = retail_price_per_unit
+        item.last_system_sale_price = retail_price_per_unit # Also update last_system_sale_price on restore
+        item.save()
 
         return JsonResponse({'success': True, 'message': 'Item restored successfully.'})
     return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
@@ -173,6 +177,15 @@ def item_history(request, item_id):
     item = get_object_or_404(InventoryItem, pk=item_id)
     history_list = item.history.select_related('supplier').order_by('-timestamp')
 
+    paginator = Paginator(history_list, 5)  # Paginate by 5 items per page
+    page_number = request.GET.get('page', 1)
+    try:
+        history_page = paginator.page(page_number)
+    except PageNotAnInteger:
+        history_page = paginator.page(1)
+    except EmptyPage:
+        history_page = paginator.page(paginator.num_pages)
+
     history_data = [{
         'quantity': entry.quantity,
         'unit_price': str(entry.unit_price),
@@ -180,9 +193,15 @@ def item_history(request, item_id):
         'supplier_name': entry.supplier.name if entry.supplier else None,
         'expiry_date': entry.expiry_date.strftime('%Y-%m-%d') if entry.expiry_date else None,
         'timestamp': entry.timestamp.isoformat(),
-    } for entry in history_list]
+    } for entry in history_page]
 
-    return JsonResponse({'item_name': item.name, 'history': history_data})
+    pagination_html = render_to_string('stock/pagination.html', {'page_obj': history_page})
+
+    return JsonResponse({
+        'item_name': item.name,
+        'history': history_data,
+        'pagination_html': pagination_html
+    })
 
 
 def delete_item(request, item_id):

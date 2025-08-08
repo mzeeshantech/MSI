@@ -5,10 +5,8 @@
 {% block title %}Inventory Items{% endblock %}
 
 {% block extra_head %}
-    <link href="{% static 'css/boxicons.min.css' %}" rel="stylesheet">
-    <link href="{% static 'css/css2.css' %}" rel="stylesheet">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="{% static 'js/jquery-3.6.0.min.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
 
     <style>
         .header {
@@ -79,6 +77,13 @@
         }
 
         .black-color { color: black !important; }
+
+        .modal-dialog {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100% - 3.5rem); /* Ensure it takes up most of the viewport height */
+        }
 
         .modal-content {
             border-radius: 10px;
@@ -195,9 +200,34 @@
             transform: scale(1.05);
         }
 
+        .modal-xl {
+            max-width: 98% !important; /* Make it even wider */
+        }
+
         @media (max-width: 768px) {
             .modal-dialog { margin: 0.5rem; }
             .modal-body .mb-3 { margin-bottom: 10px; }
+        }
+
+        /* New styles for modal sections */
+        .modal-section {
+            background-color: #82b3fc1a; /* A very light grey/blue for subtle background */
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px; /* Add some space between sections */
+        }
+
+        .modal-section .form-label,
+        .modal-section .form-control,
+        .modal-section .form-select,
+        .modal-section textarea.form-control {
+            font-size: 0.85rem; /* Slightly smaller font size */
+        }
+
+        /* Adjust table font size within modal */
+        .modal-body table th,
+        .modal-body table td {
+            font-size: 0.8rem; /* Even smaller for table content */
         }
     </style>
 {% endblock %}
@@ -214,8 +244,8 @@
                     {% endfor %}
                 </select>
                 <input type="text" class="search-bar" id="itemSearch" name="item_name" placeholder="Search by name or SKU...">
-                <button type="button" class="btn btn-add ms-2" data-bs-toggle="modal" data-bs-target="#addItemModal" onclick="resetItemForm()">
-                    <i class="fas fa-plus"></i> Add New Item
+                <button type="button" class="btn btn-add ms-2" data-bs-toggle="modal" data-bs-target="#generateBillModal">
+                    <i class="fas fa-file-invoice"></i> Generate Bill
                 </button>
                 <button type="button" class="btn btn-export ms-2" id="downloadExcelBtn">
                     <i class="fas fa-file-export"></i> Export
@@ -225,5 +255,450 @@
 
         
     </div>
+
+    <!-- Generate Bill Modal -->
+    <div class="modal fade" id="generateBillModal" tabindex="-1" aria-labelledby="generateBillModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <form id="billForm" action="" method="POST" class="needs-validation" novalidate>
+                {% csrf_token %}
+                <div class="modal-content">
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title" id="generateBillModalLabel"><i class="fas fa-file-invoice"></i> Generate New Bill</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="row">
+                            <div class="col-md-12 modal-section">
+                                <h6 class="text-primary"><i class="fas fa-user"></i> Customer Details</h6>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="customer_name" class="form-label">Name <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control form-control-sm" id="customer_name" name="customer_name" required>
+                                        <div class="invalid-feedback">Customer name is required.</div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="customer_cnic" class="form-label">CNIC</label>
+                                        <input type="text" class="form-control form-control-sm" id="customer_cnic" name="customer_cnic">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="customer_phone" class="form-label">Phone Number</label>
+                                        <input type="text" class="form-control form-control-sm" id="customer_phone" name="customer_phone">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="customer_address" class="form-label">Address</label>
+                                        <textarea class="form-control form-control-sm" id="customer_address" name="customer_address" rows="2"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="row">
+                            <div class="col-md-12 modal-section">
+                                <h6 class="text-success"><i class="fas fa-shopping-cart"></i> Add Items</h6>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="item_category" class="form-label">Category</label>
+                                        <select class="form-select form-select-sm" id="item_category">
+                                            <option value="" selected disabled>Select Category</option>
+                                            {% for category in categories %}
+                                                <option value="{{ category.id }}">{{ category.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="item_sku" class="form-label">SKU / Item</label>
+                                        <select class="form-select form-select-sm" id="item_sku" disabled>
+                                            <option value="" selected disabled>Select SKU</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="item_retail_price" class="form-label">Retail Price</label>
+                                        <input type="number" step="0.01" class="form-control form-control-sm" id="item_retail_price" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="item_quantity" class="form-label">Quantity (<span id="quantity_unit"></span>)</label>
+                                        <input type="number" step="0.01" class="form-control form-control-sm" id="item_quantity" min="0.01">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="item_discount_type" class="form-label">Item Discount Type</label>
+                                        <select class="form-select form-select-sm" id="item_discount_type">
+                                            <option value="none">No Discount</option>
+                                            <option value="fixed">Fixed Amount</option>
+                                            <option value="percentage">Percentage (%)</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="item_discount_amount" class="form-label">Item Discount Amount</label>
+                                        <input type="number" step="0.01" class="form-control form-control-sm" id="item_discount_amount" value="0.00">
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-primary w-100" id="addItemToBill"><i class="fas fa-plus"></i> Add Item to Bill</button>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="modal-section">
+                            <h6 class="text-info"><i class="fas fa-list"></i> Bill Line Items</h6>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-striped mt-3">
+                                    <thead>
+                                        <tr>
+                                            <th><i class="fas fa-barcode"></i> SKU</th>
+                                            <th><i class="fas fa-tag"></i> Name</th>
+                                            <th><i class="fas fa-folder"></i> Category</th>
+                                            <th><i class="fas fa-balance-scale"></i> Quantity</th>
+                                            <th><i class="fas fa-dollar-sign"></i> Price/Unit</th>
+                                            <th><i class="fas fa-percent"></i> Price/Unit after Discount</th>
+                                            <th><i class="fas fa-money-bill-wave"></i> Line Total</th>
+                                            <th><i class="fas fa-cogs"></i> Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bill_line_items_body">
+                                        <!-- Line items will be added here -->
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <th colspan="6" class="text-end">Grand Total:</th>
+                                            <th id="grand_total">Rs. 0.00</th>
+                                            <th></th>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="row mt-4">
+                            <div class="col-md-6 modal-section">
+                                <h6 class="text-secondary"><i class="fas fa-home"></i> Rent</h6>
+                                <div class="mb-3">
+                                    <label for="rent_amount" class="form-label">Rent Amount</label>
+                                    <input type="number" step="0.01" class="form-control form-control-sm" id="rent_amount" name="rent_amount" value="0.00">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="rent_payer" class="form-label">Rent Payer</label>
+                                    <select class="form-select form-select-sm" id="rent_payer" name="rent_payer">
+                                        <option value="customer">Customer</option>
+                                        <option value="company">Company</option>
+                                        <option value="shared">Shared</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6 modal-section">
+                                <h6 class="text-success"><i class="fas fa-money-check-alt"></i> Payment</h6>
+                                <div class="mb-3">
+                                    <label for="payment_method" class="form-label">Payment Method</label>
+                                    <select class="form-select form-select-sm" id="payment_method" name="payment_method">
+                                        <option value="cash">Cash</option>
+                                        <option value="online">Online</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3" id="cash_received_div">
+                                    <label for="cash_received" class="form-label">Cash Received</label>
+                                    <input type="number" step="0.01" class="form-control form-control-sm" id="cash_received" name="cash_received" value="0.00">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="change_due" class="form-label">Change Due</label>
+                                    <input type="number" step="0.01" class="form-control form-control-sm" id="change_due" readonly value="0.00">
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="submit" class="btn btn-success" id="generateBillSubmitBtn"><i class="fas fa-check"></i> Generate Bill</button>
+                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal"><i class="fas fa-times"></i> Cancel</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 {% endblock %}
 
+{% block extra_scripts %}
+    <script src="{% static 'js/bootstrap.bundle.min.js' %}" crossorigin="anonymous"></script>
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        let billItems = [];
+
+        function calculateGrandTotal() {
+            let total = 0;
+            billItems.forEach(item => {
+                let itemPriceAfterDiscount = item.retailPrice;
+                if (item.itemDiscountType === 'percentage') {
+                    itemPriceAfterDiscount -= (item.retailPrice * (item.itemDiscountAmount / 100));
+                } else if (item.itemDiscountType === 'fixed') {
+                    itemPriceAfterDiscount -= item.itemDiscountAmount;
+                }
+                total += item.quantity * itemPriceAfterDiscount;
+            });
+
+            const rent = parseFloat(document.getElementById('rent_amount').value) || 0;
+            const rentPayer = document.getElementById('rent_payer').value;
+
+            let finalTotal = total;
+
+            if (rentPayer === 'customer' || rentPayer === 'shared') {
+                finalTotal += rent;
+            }
+            
+            document.getElementById('grand_total').innerText = `Rs. ${finalTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            calculateChangeDue();
+        }
+
+        function calculateChangeDue() {
+            const grandTotalText = document.getElementById('grand_total').innerText;
+            const grandTotal = parseFloat(grandTotalText.replace('Rs. ', '').replace(/,/g, '')) || 0;
+            const cashReceived = parseFloat(document.getElementById('cash_received').value) || 0;
+            const changeDue = cashReceived - grandTotal;
+            document.getElementById('change_due').value = changeDue.toFixed(2);
+        }
+
+        function renderBillItems() {
+            const tbody = document.getElementById('bill_line_items_body');
+            tbody.innerHTML = '';
+            billItems.forEach((item, index) => {
+                let itemPriceAfterDiscount = item.retailPrice;
+                if (item.itemDiscountType === 'percentage') {
+                    itemPriceAfterDiscount -= (item.retailPrice * (item.itemDiscountAmount / 100));
+                } else if (item.itemDiscountType === 'fixed') {
+                    itemPriceAfterDiscount -= item.itemDiscountAmount;
+                }
+                const lineTotalAfterDiscount = item.quantity * itemPriceAfterDiscount;
+
+                let discountDisplay = '';
+                if (item.itemDiscountType === 'fixed') {
+                    discountDisplay = `Fixed: Rs. ${item.itemDiscountAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                } else if (item.itemDiscountType === 'percentage') {
+                    discountDisplay = `Perc: ${item.itemDiscountAmount}%`;
+                } else {
+                    discountDisplay = 'N/A';
+                }
+
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${item.sku}</td>
+                    <td>${item.name}</td>
+                    <td>${item.categoryName}</td>
+                    <td>${item.quantity} ${item.unitOfMeasure === 'KG' ? 'KG' : 'Pcs'}</td>
+                    <td>Rs. ${item.retailPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td>Rs. ${itemPriceAfterDiscount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td>Rs. ${lineTotalAfterDiscount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td><button type="button" class="btn btn-danger btn-sm remove-item" data-index="${index}"><i class="fas fa-trash-alt"></i></button></td>
+                `;
+            });
+            calculateGrandTotal();
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            // Fetch SKUs based on category selection
+            $('#item_category').on('change', function() {
+                const categoryId = $(this).val();
+                const skuSelect = $('#item_sku');
+                skuSelect.empty();
+                skuSelect.append('<option value="" selected disabled>Loading SKUs...</option>');
+                skuSelect.prop('disabled', true);
+                $('#item_retail_price').val('');
+
+                if (categoryId) {
+                    fetch(`/billing/get_skus_by_category/${categoryId}/`, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        skuSelect.empty();
+                        skuSelect.append('<option value="" selected disabled>Select SKU</option>');
+                        if (data.skus && data.skus.length > 0) {
+                            data.skus.forEach(sku => {
+                                skuSelect.append(`<option value="${sku.id}" data-price="${sku.sale_price}" data-unit="${sku.unit_of_measure}">${sku.sku} - ${sku.name}</option>`);
+                            });
+                            skuSelect.prop('disabled', false);
+                        } else {
+                            skuSelect.append('<option value="" selected disabled>No SKUs found</option>');
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        skuSelect.empty();
+                        skuSelect.append('<option value="" selected disabled>Error loading SKUs</option>');
+                    });
+                } else {
+                    skuSelect.empty();
+                    skuSelect.append('<option value="" selected disabled>Select SKU</option>');
+                }
+            });
+
+            // Auto-fill retail price when SKU is selected
+            $('#item_sku').on('change', function() {
+                const selectedOption = $(this).find('option:selected');
+                const retailPrice = selectedOption.data('price');
+                const unitOfMeasure = selectedOption.data('unit');
+                $('#item_retail_price').val(retailPrice !== undefined && retailPrice !== null ? parseFloat(retailPrice).toFixed(2) : '');
+                $('#quantity_unit').text(unitOfMeasure === 'KG' ? 'KG\'s' : 'Pieces');
+            });
+
+            // Add item to bill
+            $('#addItemToBill').on('click', function() {
+                const skuSelect = document.getElementById('item_sku');
+                const selectedSkuOption = skuSelect.options[skuSelect.selectedIndex];
+                const quantityInput = document.getElementById('item_quantity');
+                const retailPriceInput = document.getElementById('item_retail_price');
+                const categorySelect = document.getElementById('item_category');
+                const selectedCategoryOption = categorySelect.options[categorySelect.selectedIndex];
+                const itemDiscountType = document.getElementById('item_discount_type').value;
+                const itemDiscountAmount = parseFloat(document.getElementById('item_discount_amount').value) || 0;
+
+
+                const itemId = selectedSkuOption ? selectedSkuOption.value : null;
+                const sku = selectedSkuOption ? selectedSkuOption.text.split(' - ')[0] : '';
+                const name = selectedSkuOption ? selectedSkuOption.text.split(' - ')[1] : '';
+                const categoryName = selectedCategoryOption ? selectedCategoryOption.text : '';
+                const quantity = parseFloat(quantityInput.value);
+                const retailPrice = parseFloat(retailPriceInput.value);
+                const unitOfMeasure = selectedSkuOption ? selectedSkuOption.dataset.unit : '';
+
+                if (!itemId || !quantity || isNaN(quantity) || quantity <= 0 || !retailPrice || isNaN(retailPrice)) {
+                    alert('Please select an item, enter a valid quantity, and ensure retail price is available.');
+                    return;
+                }
+
+                billItems.push({
+                    itemId: itemId,
+                    sku: sku,
+                    name: name,
+                    categoryName: categoryName,
+                    quantity: quantity,
+                    retailPrice: retailPrice,
+                    itemDiscountType: itemDiscountType,
+                    itemDiscountAmount: itemDiscountAmount,
+                    unitOfMeasure: unitOfMeasure // Add unit of measure
+                });
+
+                renderBillItems();
+
+                // Clear item selection fields
+                skuSelect.value = "";
+                quantityInput.value = "";
+                retailPriceInput.value = "";
+                $('#item_category').val(''); // Reset category
+                $('#item_sku').empty().append('<option value="" selected disabled>Select SKU</option>').prop('disabled', true); // Reset SKU
+                $('#item_discount_type').val('none'); // Reset item discount type
+                $('#item_discount_amount').val('0.00'); // Reset item discount amount
+                $('#quantity_unit').text(''); // Clear quantity unit
+            });
+
+            // Remove item from bill
+            $(document).on('click', '.remove-item', function() {
+                const index = $(this).data('index');
+                billItems.splice(index, 1);
+                renderBillItems();
+            });
+
+            // Recalculate grand total on rent change
+            $('#rent_amount, #rent_payer').on('input change', calculateGrandTotal);
+
+            // Calculate change due on cash received change
+            $('#cash_received').on('input', calculateChangeDue);
+
+            // Toggle cash received input based on payment method
+            $('#payment_method').on('change', function() {
+                if ($(this).val() === 'cash') {
+                    $('#cash_received_div').show();
+                    $('#cash_received').prop('required', true);
+                } else {
+                    $('#cash_received_div').hide();
+                    $('#cash_received').prop('required', false);
+                    $('#cash_received').val('0.00'); // Reset cash received
+                }
+                calculateChangeDue(); // Recalculate change due when method changes
+            }).trigger('change'); // Trigger on load to set initial state
+
+            // Handle form submission for Generate Bill
+            const billForm = document.getElementById('billForm');
+            billForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                if (!billForm.checkValidity()) {
+                    event.stopPropagation();
+                    billForm.classList.add('was-validated');
+                    return;
+                }
+
+                if (billItems.length === 0) {
+                    alert('Please add at least one item to the bill.');
+                    return;
+                }
+
+                const formData = new FormData(billForm);
+                formData.append('bill_items', JSON.stringify(billItems));
+
+                fetch("{% url 'generate_bill' %}", { // Assuming 'generate_bill' is the URL name for your bill generation view
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrftoken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Bill generated successfully!');
+                        const generateBillModal = bootstrap.Modal.getInstance(document.getElementById('generateBillModal'));
+                        generateBillModal.hide();
+                        location.reload(); // Reload the page after successful bill generation
+                    } else {
+                        alert("Error: " + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while generating the bill.');
+                });
+            });
+
+            // Reset modal on hide
+            const generateBillModalElement = document.getElementById('generateBillModal');
+            generateBillModalElement.addEventListener('hidden.bs.modal', function () {
+                billForm.reset();
+                billForm.classList.remove('was-validated');
+                billItems = [];
+                renderBillItems();
+                $('#item_category').val('');
+                $('#item_sku').empty().append('<option value="" selected disabled>Select SKU</option>').prop('disabled', true);
+                $('#item_retail_price').val('');
+                $('#item_discount_type').val('none'); // Reset item discount type
+                $('#item_discount_amount').val('0.00'); // Reset item discount amount
+                $('#rent_amount').val('0.00');
+                $('#rent_payer').val('customer');
+                $('#payment_method').val('cash').trigger('change');
+                $('#cash_received').val('0.00');
+                $('#change_due').val('0.00');
+            });
+        });
+    </script>
+{% endblock %}

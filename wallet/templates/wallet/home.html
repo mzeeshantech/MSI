@@ -2,13 +2,11 @@
 {% load static %}
 {% load humanize %}
 
-{% block title %}Inventory Items{% endblock %}
+{% block title %}Wallet Home{% endblock %}
 
 {% block extra_head %}
-    <link href="{% static 'css/boxicons.min.css' %}" rel="stylesheet">
-    <link href="{% static 'css/css2.css' %}" rel="stylesheet">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="{% static 'js/jquery-3.6.0.min.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
 
     <style>
         .header {
@@ -177,6 +175,14 @@
             transition: background-color 0.2s ease, transform 0.2s ease;
         }
 
+        .action-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .restore-item-btn {
+            color: white !important;
+        }
+
         .btn-edit {
             background-color: #0d6efd;
             color: white;
@@ -205,25 +211,262 @@
 {% block content %}
     <div class="container-fluid">
         <div class="header">
-            <h1><i class="fas fa-boxes"></i> Wallet</h1>
+            <h1><i class="fas fa-wallet"></i> Wallet Overview</h1>
             <div class="d-flex align-items-center">
-                <select class="form-select me-2" id="categorySelect" name="category_filter" style="width: 200px;">
-                    <option value="" selected disabled>Select Category</option>
-                    {% for category in categories %}
-                        <option value="{{ category.id }}">{{ category.name }}</option>
-                    {% endfor %}
-                </select>
-                <input type="text" class="search-bar" id="itemSearch" name="item_name" placeholder="Search by name or SKU...">
-                <button type="button" class="btn btn-add ms-2" data-bs-toggle="modal" data-bs-target="#addItemModal" onclick="resetItemForm()">
-                    <i class="fas fa-plus"></i> Add New Item
-                </button>
-                <button type="button" class="btn btn-export ms-2" id="downloadExcelBtn">
-                    <i class="fas fa-file-export"></i> Export
+                <h4 class="m-0 font-weight-bold text-primary">Current Balance: PKR {{ current_balance|floatformat:2 }}</h4>
+                <button type="button" class="btn btn-add ms-3" data-bs-toggle="modal" data-bs-target="#addEntryModal" onclick="resetEntryForm()">
+                    <i class="fas fa-plus"></i> Add New Entry
                 </button>
             </div>
         </div>
 
-        
+        <div id="wallet-entries-section">
+            {% if entries %}
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th><strong><i class="fas fa-calendar-alt black-color"></i> Date</strong></th>
+                            <th><strong><i class="fas fa-tag black-color"></i> Type</strong></th>
+                            <th><strong><i class="fas fa-money-bill-wave black-color"></i> Amount</strong></th>
+                            <th><strong><i class="fas fa-file-alt black-color"></i> Description</strong></th>
+                            <th><strong><i class="fas fa-balance-scale black-color"></i> Balance After</strong></th>
+                            <th><strong><i class="fas fa-edit black-color"></i> Action</strong></th>
+                        </tr>
+                    </thead>
+                    <tbody id="walletEntryTableBody">
+                        {% for entry in entries %}
+                            <tr>
+                                <td>{{ entry.transaction_date|date:"Y-m-d" }}</td>
+                                <td>{{ entry.get_transaction_type_display }}</td>
+                                <td class="{% if entry.transaction_type == 'sale' or entry.transaction_type == 'deposit' %}text-success{% else %}text-danger{% endif %}">
+                                    PKR {{ entry.amount|floatformat:"2"|intcomma }}
+                                </td>
+                                <td>{{ entry.description|default:"N/A" }}</td>
+                                <td>PKR {{ entry.balance_after_transaction|floatformat:"2"|intcomma }}</td>
+                                <td class="action-buttons">
+                                    <a href="#" class="btn btn-sm btn-primary action-btn edit-entry" data-id="{{ entry.id }}" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-danger action-btn delete-entry-btn" data-id="{{ entry.id }}" title="Delete">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% include 'stock/pagination.html' with current_page=current_page total_pages=total_pages %}
+            {% else %}
+                <p class="text-center">No wallet entries found.</p>
+            {% endif %}
+        </div>
+
+        <!-- Add/Edit Entry Modal -->
+        <div class="modal fade" id="addEntryModal" tabindex="-1" aria-labelledby="addEntryModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <form id="entryForm" action="{% url 'wallet_home' %}" method="POST" class="needs-validation" novalidate>
+                    {% csrf_token %}
+                    <input type="hidden" name="entry_id" id="entry_id">
+                    <div class="modal-content">
+                        <div class="modal-header bg-light">
+                            <h5 class="modal-title" id="addEntryModalLabel"><i class="fas fa-plus-circle"></i> Add New Wallet Entry</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body p-4">
+                            {% include '_messages.html' %}
+                            <div class="row row-cols-1 row-cols-md-2 g-3">
+                                <div class="col">
+                                    <div class="mb-3">
+                                        <label for="transaction_type" class="form-label text-primary"><i class="fas fa-tag"></i> Transaction Type <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="transaction_type" name="transaction_type" required>
+                                            {% for val, display in transaction_type_choices %}
+                                                <option value="{{ val }}">{{ display }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="mb-3">
+                                        <label for="amount" class="form-label text-success"><i class="fas fa-money-bill-wave"></i> Amount <span class="text-danger">*</span></label>
+                                        <input type="number" step="0.01" class="form-control" id="amount" name="amount" required min="0">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="description" class="form-label text-secondary"><i class="fas fa-file-alt"></i> Description</label>
+                                <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer bg-light">
+                            <button type="submit" class="btn btn-success"><i class="fas fa-check"></i> Save</button>
+                            <button type="button" class="btn btn-danger" data-bs-dismiss="modal"><i class="fas fa-times"></i> Cancel</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 {% endblock %}
 
+{% block extra_scripts %}
+    <script src="{% static 'js/bootstrap.bundle.min.js' %}" crossorigin="anonymous"></script>
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        function resetEntryForm() {
+            const form = document.querySelector("#addEntryModal form");
+            form.reset();
+            document.getElementById("entry_id").value = "";
+            document.getElementById("addEntryModalLabel").innerHTML = '<i class="fas fa-plus-circle"></i> Add New Wallet Entry';
+            form.classList.remove('was-validated');
+        }
+
+        function renderEntries(response) {
+            const entries = response.entries;
+            let tableBody = $('#walletEntryTableBody');
+            tableBody.empty();
+
+            if (entries.length > 0) {
+                entries.forEach(entry => {
+                    const amountClass = (entry.transaction_type === 'sale' || entry.transaction_type === 'deposit') ? 'text-success' : 'text-danger';
+                    tableBody.append(`
+                        <tr>
+                            <td>${entry.transaction_date}</td>
+                            <td>${entry.transaction_type_display}</td>
+                            <td class="${amountClass}">PKR ${parseFloat(entry.amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td>${entry.description || 'N/A'}</td>
+                            <td>PKR ${parseFloat(entry.balance_after_transaction).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td class="action-buttons">
+                                <a href="#" class="btn btn-sm btn-primary action-btn edit-entry" data-id="${entry.id}" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-danger action-btn delete-entry-btn" data-id="${entry.id}" title="Delete">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `);
+                });
+                $('.pagination').replaceWith(response.pagination_html);
+            } else {
+                tableBody.append('<tr><td colspan="6" class="text-center">No wallet entries found.</td></tr>');
+                $('.pagination').empty();
+            }
+        }
+
+        function fetchData(url) {
+            $.ajax({
+                url: url,
+                method: 'GET',
+                success: function(response) {
+                    renderEntries(response);
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX Error: ', status, error);
+                }
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            // Handle form submission for Add/Edit Entry via AJAX
+            const entryForm = document.getElementById('entryForm');
+            entryForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                if (!entryForm.checkValidity()) {
+                    event.stopPropagation();
+                    entryForm.classList.add('was-validated');
+                    return;
+                }
+
+                const formData = new FormData(entryForm);
+                fetch(entryForm.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrftoken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const addEntryModal = bootstrap.Modal.getInstance(document.getElementById('addEntryModal'));
+                        addEntryModal.hide();
+                        location.reload(); // Reload the page after successful save
+                    } else {
+                        alert("Error: " + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while saving the entry.');
+                });
+            });
+
+            // Edit entry
+            $('#walletEntryTableBody').on('click', '.edit-entry', function (e) {
+                e.preventDefault();
+                const entryId = $(this).data('id');
+                
+                fetch(`/wallet_entry_detail/${entryId}/`, { // Assuming a URL for fetching single entry details
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+                    document.getElementById("entry_id").value = data.id;
+                    document.getElementById("transaction_type").value = data.transaction_type;
+                    document.getElementById("amount").value = data.amount;
+                    document.getElementById("description").value = data.description;
+
+                    document.getElementById("addEntryModalLabel").innerHTML = `<i class="fas fa-edit"></i> Edit Wallet Entry`;
+                    const modal = new bootstrap.Modal(document.getElementById('addEntryModal'));
+                    modal.show();
+                })
+                .catch(err => console.error(err));
+            });
+
+            // Delete entry
+            $('#walletEntryTableBody').on('click', '.delete-entry-btn', function (e) {
+                const entryId = $(this).data('id');
+                const row = $(this).closest('tr');
+
+                if (confirm("Are you sure you want to delete this wallet entry?")) {
+                    fetch(`/delete_wallet_entry/${entryId}/`, { // Assuming a URL for deleting wallet entries
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrftoken,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            location.reload(); // Reload the page after successful deletion
+                        } else {
+                            alert("Error: " + data.error);
+                        }
+                    })
+                    .catch(err => console.error(err));
+                }
+            });
+        });
+    </script>
+{% endblock %}
