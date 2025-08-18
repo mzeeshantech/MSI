@@ -164,14 +164,11 @@
         }
 
         .action-btn {
-            width: 36px;
-            height: 36px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            border-radius: 50%;
-            font-size: 14px;
-            padding: 0;
+            border-radius: 5px; /* Changed from 50% to make them rectangular */
+            padding: 8px 12px; /* Added padding to make them look like buttons */
             border: none;
             transition: background-color 0.2s ease, transform 0.2s ease;
         }
@@ -201,10 +198,33 @@
             background-color: #bb2d3b;
             transform: scale(1.05);
         }
+        .font-10 {
+            font-size: 10px;
+        }
+        .font-15 {
+            font-size: 15px;
+        }
+        .font-13 {
+            font-size: 13px;
+        }
+        .font-14 {
+            font-size: 14px;
+        }
+        .font-20 {
+            font-size: 20px !important;
+        }
 
         @media (max-width: 768px) {
-            .modal-dialog { margin: 0.5rem; }
             .modal-body .mb-3 { margin-bottom: 10px; }
+        }
+
+        #restoreItemModal .modal-dialog,
+        #addItemModal .modal-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            margin: auto; /* Ensure no conflicting margins */
         }
     </style>
 {% endblock %}
@@ -212,20 +232,20 @@
 {% block content %}
     <div class="container-fluid">
         <div class="header">
-            <h1><i class="fas fa-boxes"></i> Items Stock</h1>
+            <h1 class="font-20"><i class="fas fa-boxes font-13"></i> STOCK</h1>
             <div class="d-flex align-items-center">
-                <select class="form-select me-2" id="categorySelect" name="category_id" style="width: 200px;">
+                <select class="form-select me-2 font-13" id="categorySelect" name="category_id" style="width: 200px;">
                     <option value="" selected disabled>Select Category</option>
                     {% for category in categories %}
                         <option value="{{ category.id }}">{{ category.name }}</option>
                     {% endfor %}
                 </select>
-                <input type="text" class="search-bar" id="itemSearch" name="item_name" placeholder="Search by name or SKU...">
-                <button type="button" class="btn btn-add ms-2" data-bs-toggle="modal" data-bs-target="#addItemModal" onclick="resetItemForm()">
-                    <i class="fas fa-plus"></i> Add New Item
+                <input type="text" class="search-bar font-13" id="itemSearch" name="item_name" placeholder="Search by name or SKU...">
+                <button type="button" class="btn btn-add ms-2 font-14" data-bs-toggle="modal" data-bs-target="#addItemModal" onclick="resetItemForm()">
+                    <i class="fas fa-plus font-10"></i> Add New Item
                 </button>
-                <button type="button" class="btn btn-export ms-2" id="downloadExcelBtn">
-                    <i class="fas fa-file-export"></i> Export
+                <button type="button" class="btn btn-export ms-2 font-14" id="downloadExcelBtn">
+                    <i class="fas fa-file-export font-10"></i> Export
                 </button>
             </div>
         </div>
@@ -235,13 +255,13 @@
                 <table class="table table-striped table-hover" id="items_table">
                     <thead>
                         <tr>
-                            <th><strong><i class="fas fa-barcode black-color"></i> SKU</strong></th>
-                            <th><strong><i class="fas fa-box black-color"></i> Name</strong></th>
-                            <th><strong><i class="fas fa-layer-group black-color"></i> Category</strong></th>
-                            <th><strong><i class="fas fa-cubes black-color"></i> Total Stock</strong></th>
-                            <th><strong><i class="fas fa-balance-scale black-color"></i> UoM</strong></th>
-                            <th><strong><i class="fas fa-money-bill-wave black-color"></i> Sale Price</strong></th>
-                            <th><strong><i class="fas fa-edit black-color"></i> Action</strong></th>
+                            <th><strong><i class="fas fa-barcode black-color font-10"></i> SKU</strong></th>
+                            <th><strong><i class="fas fa-box black-color font-10"></i> Name</strong></th>
+                            <th><strong><i class="fas fa-layer-group black-color font-10"></i> Category</strong></th>
+                            <th><strong><i class="fas fa-cubes black-color font-10"></i> Total Stock</strong></th>
+                            <th><strong><i class="fas fa-balance-scale black-color font-10"></i> UoM</strong></th>
+                            <th><strong><i class="fas fa-money-bill-wave black-color font-10"></i> Sale Price</strong></th>
+                            <th><strong><i class="fas fa-edit black-color font-10"></i> Action</strong></th>
                         </tr>
                     </thead>
                     <tbody id="itemTableBody">
@@ -254,18 +274,18 @@
                                 <td>{{ item.get_unit_of_measure_display }}</td>
                                 <td>Rs. {{ item.sale_price|floatformat:"2"|intcomma }}</td>
                                 <td class="action-buttons">
-                                    <a href="#" class="btn btn-sm btn-info action-btn restore-item-btn" data-id="{{ item.id }}" title="Restore Item">
-                                        <i class="fas fa-undo"></i>
-                                    </a>
-                                    <a href="#" class="btn btn-sm btn-primary action-btn edit-item" data-id="{{ item.id }}" title="Edit">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-sm btn-danger action-btn delete-item-btn" data-id="{{ item.id }}" title="Delete">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </button>
-                                    <a href="#" class="btn btn-sm btn-secondary action-btn history-item-btn" data-id="{{ item.id }}" title="History">
-                                        <i class="fas fa-history"></i>
-                                    </a>
+                                <a href="#" class="btn btn-sm btn-info action-btn restore-item-btn" data-id="{{ item.id }}" title="Restore Item">
+                                    <i class="fas fa-undo font-10"></i>
+                                </a>
+                                <a href="#" class="btn btn-sm btn-primary action-btn edit-item" data-id="{{ item.id }}" title="Edit">
+                                    <i class="fas fa-edit font-10"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-danger action-btn delete-item-btn" data-id="{{ item.id }}" title="Delete">
+                                    <i class="fas fa-trash-alt font-10"></i>
+                                </button>
+                                <a href="#" class="btn btn-sm btn-secondary action-btn history-item-btn" data-id="{{ item.id }}" title="History">
+                                    <i class="fas fa-history font-10"></i>
+                                </a>
                                 </td>
                             </tr>
                         {% endfor %}
@@ -342,7 +362,7 @@
 
         <!-- Restore Item Modal -->
         <div class="modal fade" id="restoreItemModal" tabindex="-1" aria-labelledby="restoreItemModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-dialog modal-lg">
                 <form id="restoreItemForm" action="{% url 'restore_item' %}" method="POST" class="needs-validation" novalidate>
                     {% csrf_token %}
                     <input type="hidden" name="item_id" id="restore_item_id">
@@ -366,11 +386,6 @@
                                         <label for="restore_category" class="form-label text-primary"><i class="fas fa-layer-group"></i> Category</label>
                                         <input type="text" class="form-control" id="restore_category" readonly disabled>
                                     </div>
-                                    <div class="mb-3">
-                                        <label for="restore_quantity" class="form-label text-warning"><i class="fas fa-cubes"></i> Quantity <span class="text-danger">*</span></label>
-                                        <input type="number" class="form-control" id="restore_quantity" name="quantity" required min="1">
-                                        <div class="invalid-feedback">Please enter the quantity.</div>
-                                    </div>
                                 </div>
                                 <div class="col">
                                     <div class="mb-3">
@@ -380,6 +395,11 @@
                                     <div class="mb-3">
                                         <label for="restore_retail_price_per_unit" class="form-label text-success"><i class="fas fa-tag"></i> Retail Price/Unit <span class="text-danger">*</span></label>
                                         <input type="number" step="0.01" class="form-control" id="restore_retail_price_per_unit" name="retail_price_per_unit" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="restore_quantity" class="form-label text-warning"><i class="fas fa-cubes"></i> Quantity <span class="text-danger">*</span></label>
+                                        <input type="number" class="form-control" id="restore_quantity" name="quantity" required min="1">
+                                        <div class="invalid-feedback">Please enter the quantity.</div>
                                     </div>
                                 </div>
                             </div>

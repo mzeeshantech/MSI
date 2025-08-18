@@ -25,7 +25,7 @@ class InventoryItem(models.Model):
     category = models.ForeignKey(InventoryCategory, on_delete=models.CASCADE)
     name = models.CharField(max_length=200)
     sku = models.CharField(max_length=100, unique=True)
-    total_stock_quantity = models.IntegerField(default=0)
+    total_stock_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     unit_of_measure = models.CharField(
         max_length=50,
         choices=UNIT_OF_MEASURE_CHOICES,

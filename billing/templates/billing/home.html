@@ -170,16 +170,17 @@
         }
 
         .action-btn {
-            width: 36px;
-            height: 36px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            border-radius: 50%;
-            font-size: 14px;
-            padding: 0;
+            border-radius: 5px; /* Changed from 50% to make them rectangular */
+            padding: 8px 12px; /* Added padding to make them look like buttons */
             border: none;
             transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .action-btn:hover {
+            transform: scale(1.05);
         }
 
         .btn-edit {
@@ -188,7 +189,6 @@
         }
         .btn-edit:hover {
             background-color: #0b5ed7;
-            transform: scale(1.05);
         }
 
         .btn-delete {
@@ -197,7 +197,6 @@
         }
         .btn-delete:hover {
             background-color: #bb2d3b;
-            transform: scale(1.05);
         }
 
         .modal-xl {
@@ -229,31 +228,99 @@
         .modal-body table td {
             font-size: 0.8rem; /* Even smaller for table content */
         }
+        .font-10 {
+            font-size: 10px;
+        }
+        .font-15 {
+            font-size: 15px;
+        }
+        .font-13 {
+            font-size: 13px;
+        }
+        .font-14 {
+            font-size: 14px;
+        }
+        .font-20 {
+            font-size: 20px !important;
+        }
+
+        /* Styles for Bill Status */
+        .status-open {
+            color: #007bff; /* Blue for open */
+            font-weight: bold;
+        }
+        .status-closed {
+            color: #28a745; /* Green for closed */
+            font-weight: bold;
+        }
+        .status-cancelled {
+            color: #dc3545; /* Red for cancelled */
+            font-weight: bold;
+        }
     </style>
 {% endblock %}
 
 {% block content %}
     <div class="container-fluid">
         <div class="header">
-            <h1><i class="fas fa-boxes"></i> Billing</h1>
+            <h1 class="font-20"><i class="fas fa-file-invoice font-13"></i> BILLING</h1>
             <div class="d-flex align-items-center">
-                <select class="form-select me-2" id="categorySelect" name="category_filter" style="width: 200px;">
-                    <option value="" selected disabled>Select Category</option>
-                    {% for category in categories %}
-                        <option value="{{ category.id }}">{{ category.name }}</option>
-                    {% endfor %}
-                </select>
-                <input type="text" class="search-bar" id="itemSearch" name="item_name" placeholder="Search by name or SKU...">
-                <button type="button" class="btn btn-add ms-2" data-bs-toggle="modal" data-bs-target="#generateBillModal">
-                    <i class="fas fa-file-invoice"></i> Generate Bill
+                <input type="text" class="search-bar font-13" id="globalSearch" name="global_search" placeholder="Search by Customer Name or Bill No.">
+                <button type="button" class="btn btn-add ms-2 font-14" data-bs-toggle="modal" data-bs-target="#generateBillModal">
+                    <i class="fas fa-file-invoice font-10"></i> Generate Bill
                 </button>
-                <button type="button" class="btn btn-export ms-2" id="downloadExcelBtn">
-                    <i class="fas fa-file-export"></i> Export
+                <button type="button" class="btn btn-export ms-2 font-14" id="downloadExcelBtn">
+                    <i class="fas fa-file-export font-10"></i> Export
                 </button>
             </div>
         </div>
 
         
+    </div>
+
+    <div id="search-results">
+        {% if bills %}
+            <table class="table table-striped table-hover" id="bills_table">
+                <thead>
+                    <tr>
+                        <th><strong><i class="fas fa-file-invoice black-color font-10"></i> Bill No.</strong></th>
+                        <th><strong><i class="fas fa-user black-color font-10"></i> Customer Name</strong></th>
+                        <th><strong><i class="fas fa-calendar-alt black-color font-10"></i> Date</strong></th>
+                        <th><strong><i class="fas fa-money-bill-wave black-color font-10"></i> Grand Total</strong></th>
+                        <th><strong><i class="fas fa-home black-color font-10"></i> Rent Amount</strong></th>
+                        <th><strong><i class="fas fa-money-bill-alt black-color font-10"></i> Cash Received</strong></th>
+                        <th><strong><i class="fas fa-info-circle black-color font-10"></i> Bill Status</strong></th>
+                        <th><strong><i class="fas fa-cogs black-color font-10"></i> Action</strong></th>
+                    </tr>
+                </thead>
+                <tbody id="billTableBody">
+                    {% for bill in bills %}
+                        <tr>
+                            <td>{{ bill.bill_number }}</td>
+                            <td>{{ bill.customer.name }}</td>
+                            <td>{{ bill.created_at|date:"d M, Y" }}</td>
+                            <td class="text-success">Rs. {{ bill.total_amount|floatformat:"2"|intcomma }}</td>
+                            <td>Rs. {{ bill.rent_amount|floatformat:"2"|intcomma }}</td>
+                            <td>Rs. {{ bill.amount_paid|floatformat:"2"|intcomma }}</td>
+                            <td><span class="status-{{ bill.status }}">{{ bill.get_status_display }}</span></td>
+                            <td class="action-buttons">
+                                <button type="button" class="btn btn-primary action-btn edit-bill-btn" data-id="{{ bill.id }}" title="Edit">
+                                    <i class="fas fa-edit font-10"></i>
+                                </button>
+                                <button type="button" class="btn btn-danger action-btn delete-bill-btn" data-id="{{ bill.id }}" title="Delete">
+                                    <i class="fas fa-trash-alt font-10"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-center">No bills found.</p>
+        {% endif %}
+    </div>
+    <div id="pagination-container">
+        {% include 'stock/pagination.html' with page_obj=page_obj %}
     </div>
 
     <!-- Generate Bill Modal -->
@@ -266,6 +333,7 @@
                         <h5 class="modal-title" id="generateBillModalLabel"><i class="fas fa-file-invoice"></i> Generate New Bill</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
+                    <input type="hidden" id="bill_id" name="bill_id">
                     <div class="modal-body p-4">
                         <div class="row">
                             <div class="col-md-12 modal-section">
@@ -322,8 +390,9 @@
                                         <input type="number" step="0.01" class="form-control form-control-sm" id="item_retail_price" readonly>
                                     </div>
                                     <div class="col-md-6 mb-3">
-                                        <label for="item_quantity" class="form-label">Quantity (<span id="quantity_unit"></span>)</label>
+                                        <label for="item_quantity" class="form-label">Quantity (<span id="quantity_unit"></span>) <span class="text-muted font-10">(Stock: <span id="total_stock_available">0</span>)</span></label>
                                         <input type="number" step="0.01" class="form-control form-control-sm" id="item_quantity" min="0.01">
+                                        <div class="invalid-feedback" id="stock_feedback"></div>
                                     </div>
                                 </div>
                                 <div class="row">
@@ -390,8 +459,18 @@
                                     <select class="form-select form-select-sm" id="rent_payer" name="rent_payer">
                                         <option value="customer">Customer</option>
                                         <option value="company">Company</option>
-                                        <option value="shared">Shared</option>
+                                        <option value="both">Both</option>
                                     </select>
+                                </div>
+                                <div class="row" id="rent_payer_both_div" style="display: none;">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="rent_customer_amount" class="form-label">Customer Rent Amount</label>
+                                        <input type="number" step="0.01" class="form-control form-control-sm" id="rent_customer_amount" name="rent_customer_amount" value="0.00">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="rent_company_amount" class="form-label">Company Rent Amount</label>
+                                        <input type="number" step="0.01" class="form-control form-control-sm" id="rent_company_amount" name="rent_company_amount" value="0.00">
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-md-6 modal-section">
@@ -401,11 +480,16 @@
                                     <select class="form-select form-select-sm" id="payment_method" name="payment_method">
                                         <option value="cash">Cash</option>
                                         <option value="online">Online</option>
+                                        <option value="both">Both</option>
                                     </select>
                                 </div>
                                 <div class="mb-3" id="cash_received_div">
                                     <label for="cash_received" class="form-label">Cash Received</label>
                                     <input type="number" step="0.01" class="form-control form-control-sm" id="cash_received" name="cash_received" value="0.00">
+                                </div>
+                                <div class="mb-3" id="online_received_div" style="display: none;">
+                                    <label for="online_received" class="form-label">Online Received</label>
+                                    <input type="number" step="0.01" class="form-control form-control-sm" id="online_received" name="online_received" value="0.00">
                                 </div>
                                 <div class="mb-3">
                                     <label for="change_due" class="form-label">Change Due</label>
@@ -417,6 +501,7 @@
                     </div>
                     <div class="modal-footer bg-light">
                         <button type="submit" class="btn btn-success" id="generateBillSubmitBtn"><i class="fas fa-check"></i> Generate Bill</button>
+                        <button type="button" class="btn btn-warning" id="markBillClosedBtn" style="display: none;"><i class="fas fa-lock"></i> Mark as Closed</button>
                         <button type="button" class="btn btn-danger" data-bs-dismiss="modal"><i class="fas fa-times"></i> Cancel</button>
                     </div>
                 </div>
@@ -465,6 +550,10 @@
 
             if (rentPayer === 'customer' || rentPayer === 'shared') {
                 finalTotal += rent;
+            } else if (rentPayer === 'both') {
+                const customerRent = parseFloat(document.getElementById('rent_customer_amount').value) || 0;
+                const companyRent = parseFloat(document.getElementById('rent_company_amount').value) || 0;
+                finalTotal += (customerRent + companyRent);
             }
             
             document.getElementById('grand_total').innerText = `Rs. ${finalTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
@@ -475,7 +564,20 @@
             const grandTotalText = document.getElementById('grand_total').innerText;
             const grandTotal = parseFloat(grandTotalText.replace('Rs. ', '').replace(/,/g, '')) || 0;
             const cashReceived = parseFloat(document.getElementById('cash_received').value) || 0;
-            const changeDue = cashReceived - grandTotal;
+            const onlineReceived = parseFloat(document.getElementById('online_received').value) || 0;
+            
+            let totalPaid = 0;
+            const paymentMethod = document.getElementById('payment_method').value;
+
+            if (paymentMethod === 'cash') {
+                totalPaid = cashReceived;
+            } else if (paymentMethod === 'online') {
+                totalPaid = onlineReceived;
+            } else if (paymentMethod === 'both') {
+                totalPaid = cashReceived + onlineReceived;
+            }
+
+            const changeDue = totalPaid - grandTotal;
             document.getElementById('change_due').value = changeDue.toFixed(2);
         }
 
@@ -520,46 +622,69 @@
             $('#item_category').on('change', function() {
                 const categoryId = $(this).val();
                 const skuSelect = $('#item_sku');
-                skuSelect.empty();
-                skuSelect.append('<option value="" selected disabled>Loading SKUs...</option>');
-                skuSelect.prop('disabled', true);
+                skuSelect.empty().append('<option value="" selected disabled>Loading SKUs...</option>').prop('disabled', true);
                 $('#item_retail_price').val('');
+                $('#quantity_unit').text('');
+                $('#total_stock_available').text('0');
+                $('#item_quantity').removeClass('is-invalid');
+                $('#stock_feedback').text('');
 
                 if (categoryId) {
-                    fetch(`/billing/get_skus_by_category/${categoryId}/`, {
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        skuSelect.empty();
-                        skuSelect.append('<option value="" selected disabled>Select SKU</option>');
-                        if (data.skus && data.skus.length > 0) {
-                            data.skus.forEach(sku => {
-                                skuSelect.append(`<option value="${sku.id}" data-price="${sku.sale_price}" data-unit="${sku.unit_of_measure}">${sku.sku} - ${sku.name}</option>`);
-                            });
-                            skuSelect.prop('disabled', false);
-                        } else {
-                            skuSelect.append('<option value="" selected disabled>No SKUs found</option>');
-                        }
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        skuSelect.empty();
-                        skuSelect.append('<option value="" selected disabled>Error loading SKUs</option>');
-                    });
+                    fetch(`/billing/get_skus_by_category/${categoryId}/`)
+                        .then(response => response.json())
+                        .then(data => {
+                            skuSelect.empty().append('<option value="" selected disabled>Select SKU</option>');
+                            if (data.skus && data.skus.length > 0) {
+                                data.skus.forEach(sku => {
+                                    skuSelect.append(`<option value="${sku.id}" data-price="${sku.sale_price}" data-unit="${sku.unit_of_measure}" data-stock="${sku.total_stock_quantity}">${sku.sku} - ${sku.name}</option>`);
+                                });
+                                skuSelect.prop('disabled', false);
+                            } else {
+                                skuSelect.append('<option value="" selected disabled>No SKUs found for this category</option>');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching SKUs:', error);
+                            skuSelect.empty().append('<option value="" selected disabled>Error loading SKUs</option>');
+                        });
                 } else {
-                    skuSelect.empty();
-                    skuSelect.append('<option value="" selected disabled>Select SKU</option>');
+                    skuSelect.empty().append('<option value="" selected disabled>Select SKU</option>').prop('disabled', true);
                 }
             });
 
-            // Auto-fill retail price when SKU is selected
+            // Auto-fill retail price and display stock when SKU is selected
             $('#item_sku').on('change', function() {
                 const selectedOption = $(this).find('option:selected');
                 const retailPrice = selectedOption.data('price');
                 const unitOfMeasure = selectedOption.data('unit');
+                const totalStock = selectedOption.data('stock');
+
                 $('#item_retail_price').val(retailPrice !== undefined && retailPrice !== null ? parseFloat(retailPrice).toFixed(2) : '');
                 $('#quantity_unit').text(unitOfMeasure === 'KG' ? 'KG\'s' : 'Pieces');
+                $('#total_stock_available').text(totalStock !== undefined && totalStock !== null ? parseFloat(totalStock).toLocaleString() : '0');
+
+                // Clear any previous validation feedback
+                $('#item_quantity').removeClass('is-invalid');
+                $('#stock_feedback').text('');
+            });
+
+            // Validate quantity on input
+            $('#item_quantity').on('input', function() {
+                const quantity = parseFloat($(this).val());
+                const selectedOption = $('#item_sku').find('option:selected');
+                const totalStock = selectedOption.data('stock');
+                const stockFeedback = $('#stock_feedback');
+
+                if (isNaN(quantity) || quantity <= 0) {
+                    $(this).addClass('is-invalid');
+                    stockFeedback.text('Please enter a valid quantity greater than 0.');
+                } else if (totalStock !== undefined && totalStock !== null && quantity > totalStock) {
+                    $(this).addClass('is-invalid');
+                    stockFeedback.text(`Not enough stock. Available: ${totalStock}`);
+                } else {
+                    $(this).removeClass('is-invalid');
+                    stockFeedback.text('');
+                }
             });
 
             // Add item to bill
@@ -573,7 +698,6 @@
                 const itemDiscountType = document.getElementById('item_discount_type').value;
                 const itemDiscountAmount = parseFloat(document.getElementById('item_discount_amount').value) || 0;
 
-
                 const itemId = selectedSkuOption ? selectedSkuOption.value : null;
                 const sku = selectedSkuOption ? selectedSkuOption.text.split(' - ')[0] : '';
                 const name = selectedSkuOption ? selectedSkuOption.text.split(' - ')[1] : '';
@@ -581,9 +705,18 @@
                 const quantity = parseFloat(quantityInput.value);
                 const retailPrice = parseFloat(retailPriceInput.value);
                 const unitOfMeasure = selectedSkuOption ? selectedSkuOption.dataset.unit : '';
+                const totalStock = selectedSkuOption ? selectedSkuOption.dataset.stock : 0;
 
+                // Client-side validation before adding item
                 if (!itemId || !quantity || isNaN(quantity) || quantity <= 0 || !retailPrice || isNaN(retailPrice)) {
                     alert('Please select an item, enter a valid quantity, and ensure retail price is available.');
+                    return;
+                }
+
+                if (quantity > totalStock) {
+                    alert(`Not enough stock for ${name}. Available: ${totalStock} ${unitOfMeasure === 'KG' ? 'KG\'s' : 'Pieces'}.`);
+                    $('#item_quantity').addClass('is-invalid');
+                    $('#stock_feedback').text(`Not enough stock. Available: ${totalStock}`);
                     return;
                 }
 
@@ -596,7 +729,8 @@
                     retailPrice: retailPrice,
                     itemDiscountType: itemDiscountType,
                     itemDiscountAmount: itemDiscountAmount,
-                    unitOfMeasure: unitOfMeasure // Add unit of measure
+                    unitOfMeasure: unitOfMeasure, // Add unit of measure
+                    totalStock: totalStock // Add total stock for reference
                 });
 
                 renderBillItems();
@@ -610,6 +744,9 @@
                 $('#item_discount_type').val('none'); // Reset item discount type
                 $('#item_discount_amount').val('0.00'); // Reset item discount amount
                 $('#quantity_unit').text(''); // Clear quantity unit
+                $('#total_stock_available').text('0'); // Clear total stock display
+                $('#item_quantity').removeClass('is-invalid'); // Clear validation
+                $('#stock_feedback').text(''); // Clear feedback
             });
 
             // Remove item from bill
@@ -620,20 +757,43 @@
             });
 
             // Recalculate grand total on rent change
-            $('#rent_amount, #rent_payer').on('input change', calculateGrandTotal);
+            $('#rent_amount, #rent_customer_amount, #rent_company_amount, #rent_payer').on('input change', calculateGrandTotal);
 
-            // Calculate change due on cash received change
-            $('#cash_received').on('input', calculateChangeDue);
+            // Calculate change due on cash received and online received change
+            $('#cash_received, #online_received').on('input', calculateChangeDue);
 
-            // Toggle cash received input based on payment method
-            $('#payment_method').on('change', function() {
-                if ($(this).val() === 'cash') {
-                    $('#cash_received_div').show();
-                    $('#cash_received').prop('required', true);
+            // Toggle rent payer specific inputs
+            $('#rent_payer').on('change', function() {
+                if ($(this).val() === 'both') {
+                    $('#rent_payer_both_div').show();
+                    $('#rent_customer_amount').prop('required', true);
+                    $('#rent_company_amount').prop('required', true);
                 } else {
+                    $('#rent_payer_both_div').hide();
+                    $('#rent_customer_amount').prop('required', false).val('0.00');
+                    $('#rent_company_amount').prop('required', false).val('0.00');
+                }
+                calculateGrandTotal(); // Recalculate grand total when rent payer changes
+            }).trigger('change'); // Trigger on load to set initial state
+
+            // Toggle payment method specific inputs
+            $('#payment_method').on('change', function() {
+                const selectedMethod = $(this).val();
+                if (selectedMethod === 'cash') {
+                    $('#cash_received_div').show();
+                    $('#online_received_div').hide();
+                    $('#cash_received').prop('required', true);
+                    $('#online_received').prop('required', false).val('0.00');
+                } else if (selectedMethod === 'online') {
                     $('#cash_received_div').hide();
-                    $('#cash_received').prop('required', false);
-                    $('#cash_received').val('0.00'); // Reset cash received
+                    $('#online_received_div').show();
+                    $('#cash_received').prop('required', false).val('0.00');
+                    $('#online_received').prop('required', true);
+                } else if (selectedMethod === 'both') {
+                    $('#cash_received_div').show();
+                    $('#online_received_div').show();
+                    $('#cash_received').prop('required', true);
+                    $('#online_received').prop('required', true);
                 }
                 calculateChangeDue(); // Recalculate change due when method changes
             }).trigger('change'); // Trigger on load to set initial state
@@ -656,28 +816,61 @@
                 const formData = new FormData(billForm);
                 formData.append('bill_items', JSON.stringify(billItems));
 
-                fetch("{% url 'generate_bill' %}", { // Assuming 'generate_bill' is the URL name for your bill generation view
-                    method: 'POST',
+                const plainFormData = Object.fromEntries(formData.entries());
+                plainFormData.bill_items = billItems; // billItems is already an array of objects
+
+                // Add rent_customer_amount and rent_company_amount if rent_payer is 'both'
+                if (plainFormData.rent_payer === 'both') {
+                    plainFormData.rent_customer_amount = parseFloat($('#rent_customer_amount').val()) || 0;
+                    plainFormData.rent_company_amount = parseFloat($('#rent_company_amount').val()) || 0;
+                } else {
+                    delete plainFormData.rent_customer_amount;
+                    delete plainFormData.rent_company_amount;
+                }
+
+                // Add online_received if payment_method is 'online' or 'both'
+                if (plainFormData.payment_method === 'online' || plainFormData.payment_method === 'both') {
+                    plainFormData.online_received = parseFloat($('#online_received').val()) || 0;
+                } else {
+                    delete plainFormData.online_received;
+                }
+                
+                // Ensure cash_received is 0 if payment method is online
+                if (plainFormData.payment_method === 'online') {
+                    plainFormData.cash_received = 0;
+                }
+
+                const billId = document.getElementById('bill_id').value;
+                let url = "{% url 'generate_bill' %}";
+                let method = 'POST';
+                if (billId) {
+                    url = `/billing/update_bill/${billId}/`; // New URL for updating bill
+                    method = 'PUT'; // Use PUT for updates
+                }
+
+                fetch(url, {
+                    method: method,
                     headers: {
                         'X-CSRFToken': csrftoken,
+                        'Content-Type': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest'
                     },
-                    body: formData
+                    body: JSON.stringify(plainFormData)
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        alert('Bill generated successfully!');
+                        alert(billId ? 'Bill updated successfully!' : 'Bill generated successfully!');
                         const generateBillModal = bootstrap.Modal.getInstance(document.getElementById('generateBillModal'));
                         generateBillModal.hide();
-                        location.reload(); // Reload the page after successful bill generation
+                        location.reload();
                     } else {
                         alert("Error: " + data.message);
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('An error occurred while generating the bill.');
+                    alert('An error occurred while processing the bill.');
                 });
             });
 
@@ -691,13 +884,226 @@
                 $('#item_category').val('');
                 $('#item_sku').empty().append('<option value="" selected disabled>Select SKU</option>').prop('disabled', true);
                 $('#item_retail_price').val('');
-                $('#item_discount_type').val('none'); // Reset item discount type
-                $('#item_discount_amount').val('0.00'); // Reset item discount amount
+                $('#item_discount_type').val('none');
+                $('#item_discount_amount').val('0.00');
                 $('#rent_amount').val('0.00');
-                $('#rent_payer').val('customer');
-                $('#payment_method').val('cash').trigger('change');
+                $('#rent_payer').val('customer').trigger('change'); // Reset and trigger change
+                $('#payment_method').val('cash').trigger('change'); // Reset and trigger change
                 $('#cash_received').val('0.00');
+                $('#online_received').val('0.00'); // Reset online received
                 $('#change_due').val('0.00');
+                $('#bill_id').val(''); // Clear bill ID
+                $('#generateBillModalLabel').html('<i class="fas fa-file-invoice"></i> Generate New Bill'); // Reset modal title
+                $('#generateBillSubmitBtn').html('<i class="fas fa-check"></i> Generate Bill'); // Reset button text
+                $('#markBillClosedBtn').hide(); // Hide mark as closed button
+            });
+
+            // Edit Bill functionality
+            $(document).on('click', '.edit-bill-btn', function() {
+                const billId = $(this).data('id');
+                $('#bill_id').val(billId); // Set bill ID in hidden input
+                $('#generateBillModalLabel').html('<i class="fas fa-edit"></i> Edit Bill'); // Change modal title
+                        $('#generateBillSubmitBtn').html('<i class="fas fa-check"></i> Update Bill'); // Change button text
+
+                        // Fetch bill details
+                        fetch(`/billing/get_bill_details/${billId}/`, {
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                const bill = data.bill;
+                                // Populate customer details
+                                $('#customer_name').val(bill.customer.name);
+                                $('#customer_cnic').val(bill.customer.cnic);
+                                $('#customer_phone').val(bill.customer.phone);
+                                $('#customer_address').val(bill.customer.address);
+
+                                // Populate rent details
+                                $('#rent_amount').val(parseFloat(bill.rent_amount).toFixed(2));
+                                $('#rent_payer').val(bill.rent_payer).trigger('change'); // Trigger change for visibility
+                                if (bill.rent_payer === 'both') {
+                                    $('#rent_customer_amount').val(parseFloat(bill.rent_customer_amount).toFixed(2));
+                                    $('#rent_company_amount').val(parseFloat(bill.rent_company_amount).toFixed(2));
+                                }
+
+                                // Populate payment details
+                                $('#payment_method').val(bill.payment_method).trigger('change');
+                                $('#cash_received').val(parseFloat(bill.amount_paid).toFixed(2));
+                                if (bill.payment_method === 'online' || bill.payment_method === 'both') {
+                                    $('#online_received').val(parseFloat(bill.online_amount_paid).toFixed(2));
+                                }
+
+                                // Populate bill items
+                                billItems = bill.items.map(item => ({
+                                    itemId: item.item_id,
+                                    sku: item.sku,
+                                    name: item.name,
+                                    categoryName: item.category_name,
+                                    quantity: parseFloat(item.quantity),
+                                    retailPrice: parseFloat(item.retail_price),
+                                    itemDiscountType: item.discount_type,
+                                    itemDiscountAmount: parseFloat(item.discount_amount),
+                                    unitOfMeasure: item.unit_of_measure
+                                }));
+                                renderBillItems();
+                                calculateGrandTotal(); // Recalculate after populating items
+
+                                // Show/hide Mark as Closed button and disable Update Bill button based on bill status
+                                if (bill.status === 'open') {
+                                    $('#markBillClosedBtn').show();
+                                    $('#generateBillSubmitBtn').prop('disabled', false);
+                                } else {
+                                    $('#markBillClosedBtn').hide();
+                                    $('#generateBillSubmitBtn').prop('disabled', true); // Disable update button if bill is closed or cancelled
+                                }
+
+                                // Open the modal
+                                const generateBillModal = new bootstrap.Modal(document.getElementById('generateBillModal'));
+                                generateBillModal.show();
+
+                            } else {
+                                alert("Error fetching bill details: " + data.message);
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error fetching bill details:', err);
+                            alert('An error occurred while fetching bill details.');
+                        });
+            });
+
+            // Mark Bill as Closed functionality
+            $('#markBillClosedBtn').on('click', function() {
+                const billId = $('#bill_id').val();
+                const changeDue = parseFloat($('#change_due').val());
+
+                if (changeDue !== 0) {
+                    alert('Change Due must be 0 before marking the bill as closed.');
+                    return;
+                }
+
+                if (confirm('Are you sure you want to mark this bill as closed? This action cannot be undone.')) {
+                    fetch(`/billing/mark_bill_closed/${billId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrftoken,
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Bill marked as closed successfully!');
+                            const generateBillModal = bootstrap.Modal.getInstance(document.getElementById('generateBillModal'));
+                            generateBillModal.hide();
+                            location.reload();
+                        } else {
+                            alert("Error: " + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while marking the bill as closed.');
+                    });
+                }
+            });
+        });
+
+        function renderBills(response) {
+            const bills = response.bills;
+            let tableBody = $('#billTableBody');
+            tableBody.empty();
+
+            if (bills.length > 0) {
+                bills.forEach(bill => {
+                    tableBody.append(`
+                        <tr>
+                            <td>${bill.bill_number}</td>
+                            <td>${bill.customer__name}</td>
+                            <td>${new Date(bill.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                            <td class="text-success">Rs. ${parseFloat(bill.total_amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td>Rs. ${parseFloat(bill.rent_amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td class="text-success">Rs. ${parseFloat(bill.amount_paid).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td><span class="status-${bill.status}">${bill.get_status_display}</span></td>
+                            <td class="action-buttons">
+                                <button type="button" class="btn btn-sm btn-primary action-btn edit-bill-btn" data-id="${bill.id}" title="Edit">
+                                    <i class="fas fa-edit font-10"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-danger action-btn delete-bill-btn" data-id="${bill.id}" title="Delete">
+                                    <i class="fas fa-trash-alt font-10"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `);
+                });
+                $('#pagination-container').html(response.pagination_html);
+            } else {
+                tableBody.append('<tr><td colspan="8" class="text-center">No bills found.</td></tr>');
+                $('#pagination-container').empty(); // Clear pagination if no bills
+            }
+        }
+
+        function fetchBillsData(url) {
+            $.ajax({
+                url: url,
+                method: 'GET',
+                success: function(response) {
+                    renderBills(response);
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX Error: ', status, error);
+                }
+            });
+        }
+
+        $(document).ready(function() {
+            // AJAX search for bills based on customer name and bill number
+            $('#globalSearch').on('keyup change', function() {
+                const searchTerm = $(this).val();
+                
+                const url = new URL("{% url 'billing_home' %}", window.location.origin);
+                if (searchTerm) {
+                    url.searchParams.append('search_term', searchTerm);
+                }
+
+                fetchBillsData(url);
+            });
+
+            // Handle pagination via AJAX for bills table
+            $(document).on('click', '#search-results .pagination a', function(e) {
+                e.preventDefault();
+                const url = $(this).attr('href');
+                fetchBillsData(url);
+            });
+
+            // Delete bill
+            $(document).on('click', '.delete-bill-btn', function (e) {
+                const billId = $(this).data('id');
+
+                if (confirm("Are you sure you want to delete this bill?")) {
+                    fetch(`/billing/delete_bill/${billId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrftoken,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            alert("Error: " + data.error);
+                        }
+                    })
+                    .catch(err => console.error(err));
+                }
+            });
+
+            // Export to Excel functionality
+            $('#downloadExcelBtn').on('click', function() {
+                window.location.href = "{% url 'export_bills_excel' %}";
             });
         });
     </script>
