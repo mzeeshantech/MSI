@@ -57,7 +57,8 @@ def wallet_home(request):
                 entry.description = description
                 entry.balance_after_transaction = update_wallet_balance(amount, is_deduction)
                 entry.save()
-                messages.success(request, f"Wallet entry updated successfully.")
+                if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    messages.success(request, f"Wallet entry updated successfully.")
             else:
                 # Handle new entry
                 new_balance = update_wallet_balance(amount, is_deduction)
@@ -68,12 +69,44 @@ def wallet_home(request):
                     balance_after_transaction=new_balance,
                     transaction_date=date.today()
                 )
-                messages.success(request, f"{transaction_type.capitalize()} transaction recorded successfully.")
-        return redirect('wallet_home')
+                if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    messages.success(request, f"{transaction_type.capitalize()} transaction recorded successfully.")
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            # For AJAX requests, return JSON with updated data
+            entries_list = WalletEntry.objects.all().order_by("-id")
+            paginator = Paginator(entries_list, 10)
+            page_number = request.GET.get('page')
+            entries = paginator.get_page(page_number)
 
-    from django.core.paginator import Paginator
+            # Render pagination HTML separately
+            from django.template.loader import render_to_string
+            pagination_html = render_to_string('stock/pagination.html', {'current_page': entries.number, 'total_pages': entries.paginator.num_pages, 'page_obj': entries}, request=request)
 
-    entries_list = WalletEntry.objects.all()
+            serialized_entries = []
+            for entry in entries:
+                serialized_entries.append({
+                    'id': entry.id,
+                    'transaction_date': entry.transaction_date.strftime("%Y-%m-%d"),
+                    'transaction_type': entry.transaction_type,
+                    'transaction_type_display': entry.get_transaction_type_display(),
+                    'amount': float(entry.amount),
+                    'description': entry.description,
+                    'balance_after_transaction': float(entry.balance_after_transaction),
+                })
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Entry saved successfully.',
+                'entries': serialized_entries,
+                'current_balance': float(get_wallet_balance()),
+                'pagination_html': pagination_html,
+            })
+        else:
+            # For non-AJAX requests, redirect
+            return redirect('wallet_home')
+
+    entries_list = WalletEntry.objects.all().order_by("-id")
     paginator = Paginator(entries_list, 10) # Show 10 entries per page
     page_number = request.GET.get('page')
     entries = paginator.get_page(page_number)
@@ -108,8 +141,35 @@ def delete_wallet_entry(request, pk):
                 # Revert the balance change
                 update_wallet_balance(entry.amount, is_deduction=not (entry.transaction_type in ['sale', 'deposit']))
                 entry.delete()
-                messages.success(request, "Wallet entry deleted successfully.")
-                return JsonResponse({'success': True})
+
+                # After deletion, fetch updated data for frontend rendering
+                entries_list = WalletEntry.objects.all().order_by("-id")
+                paginator = Paginator(entries_list, 10)
+                page_number = request.GET.get('page')
+                entries = paginator.get_page(page_number)
+
+                from django.template.loader import render_to_string
+                pagination_html = render_to_string('stock/pagination.html', {'current_page': entries.number, 'total_pages': entries.paginator.num_pages, 'page_obj': entries}, request=request)
+
+                serialized_entries = []
+                for entry_item in entries:
+                    serialized_entries.append({
+                        'id': entry_item.id,
+                        'transaction_date': entry_item.transaction_date.strftime("%Y-%m-%d"),
+                        'transaction_type': entry_item.transaction_type,
+                        'transaction_type_display': entry_item.get_transaction_type_display(),
+                        'amount': float(entry_item.amount),
+                        'description': entry_item.description,
+                        'balance_after_transaction': float(entry_item.balance_after_transaction),
+                    })
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Wallet entry deleted successfully.',
+                    'entries': serialized_entries,
+                    'current_balance': float(get_wallet_balance()),
+                    'pagination_html': pagination_html,
+                })
         except WalletEntry.DoesNotExist:
             return JsonResponse({'success': False, 'error': 'Entry not found'}, status=404)
         except Exception as e:

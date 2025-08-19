@@ -272,6 +272,9 @@
                 <button type="button" class="btn btn-export ms-2 font-14" id="downloadExcelBtn">
                     <i class="fas fa-file-export font-10"></i> Export
                 </button>
+                <button type="button" class="btn btn-danger ms-2 font-14" id="bulkDeleteBtn" style="display: none;">
+                    <i class="fas fa-trash-alt font-10"></i> Bulk Delete
+                </button>
             </div>
         </div>
 
@@ -283,6 +286,7 @@
             <table class="table table-striped table-hover" id="bills_table">
                 <thead>
                     <tr>
+                        <th><input type="checkbox" id="selectAllBills"></th>
                         <th><strong><i class="fas fa-file-invoice black-color font-10"></i> Bill No.</strong></th>
                         <th><strong><i class="fas fa-user black-color font-10"></i> Customer Name</strong></th>
                         <th><strong><i class="fas fa-calendar-alt black-color font-10"></i> Date</strong></th>
@@ -296,6 +300,7 @@
                 <tbody id="billTableBody">
                     {% for bill in bills %}
                         <tr>
+                            <td><input type="checkbox" class="bill-checkbox" data-id="{{ bill.id }}"></td>
                             <td>{{ bill.bill_number }}</td>
                             <td>{{ bill.customer.name }}</td>
                             <td>{{ bill.created_at|date:"d M, Y" }}</td>
@@ -304,6 +309,9 @@
                             <td>Rs. {{ bill.amount_paid|floatformat:"2"|intcomma }}</td>
                             <td><span class="status-{{ bill.status }}">{{ bill.get_status_display }}</span></td>
                             <td class="action-buttons">
+                                <button type="button" class="btn btn-info action-btn view-bill-btn" data-id="{{ bill.id }}" title="View PDF">
+                                    <i class="fas fa-file-pdf font-10"></i>
+                                </button>
                                 <button type="button" class="btn btn-primary action-btn edit-bill-btn" data-id="{{ bill.id }}" title="Edit">
                                     <i class="fas fa-edit font-10"></i>
                                 </button>
@@ -1008,6 +1016,63 @@
                     });
                 }
             });
+
+            // Bulk Delete functionality
+            $('#selectAllBills').on('change', function() {
+                $('.bill-checkbox').prop('checked', $(this).prop('checked'));
+                toggleBulkDeleteButton();
+            });
+
+            $(document).on('change', '.bill-checkbox', function() {
+                toggleBulkDeleteButton();
+                if (!$(this).prop('checked')) {
+                    $('#selectAllBills').prop('checked', false);
+                } else if ($('.bill-checkbox:checked').length === $('.bill-checkbox').length) {
+                    $('#selectAllBills').prop('checked', true);
+                }
+            });
+
+            function toggleBulkDeleteButton() {
+                if ($('.bill-checkbox:checked').length > 0) {
+                    $('#bulkDeleteBtn').show();
+                } else {
+                    $('#bulkDeleteBtn').hide();
+                }
+            }
+
+            $('#bulkDeleteBtn').on('click', function() {
+                const selectedBillIds = [];
+                $('.bill-checkbox:checked').each(function() {
+                    selectedBillIds.push($(this).data('id'));
+                });
+
+                if (selectedBillIds.length === 0) {
+                    alert('Please select at least one bill to delete.');
+                    return;
+                }
+
+                if (confirm(`Are you sure you want to delete ${selectedBillIds.length} selected bill(s)?`)) {
+                    fetch("{% url 'bulk_delete_bills' %}", {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrftoken,
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({ bill_ids: selectedBillIds })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                            location.reload();
+                        } else {
+                            alert("Error: " + data.error);
+                        }
+                    })
+                    .catch(err => console.error(err));
+                }
+            });
         });
 
         function renderBills(response) {
@@ -1019,14 +1084,17 @@
                 bills.forEach(bill => {
                     tableBody.append(`
                         <tr>
+                            <td><input type="checkbox" class="bill-checkbox" data-id="${bill.id}"></td>
                             <td>${bill.bill_number}</td>
-                            <td>${bill.customer__name}</td>
                             <td>${new Date(bill.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
                             <td class="text-success">Rs. ${parseFloat(bill.total_amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td>Rs. ${parseFloat(bill.rent_amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td class="text-success">Rs. ${parseFloat(bill.amount_paid).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td><span class="status-${bill.status}">${bill.get_status_display}</span></td>
                             <td class="action-buttons">
+                                <button type="button" class="btn btn-sm btn-info action-btn view-bill-btn" data-id="${bill.id}" title="View PDF">
+                                    <i class="fas fa-file-pdf font-10"></i>
+                                </button>
                                 <button type="button" class="btn btn-sm btn-primary action-btn edit-bill-btn" data-id="${bill.id}" title="Edit">
                                     <i class="fas fa-edit font-10"></i>
                                 </button>
@@ -1038,9 +1106,11 @@
                     `);
                 });
                 $('#pagination-container').html(response.pagination_html);
+                toggleBulkDeleteButton(); // Update button visibility after rendering bills
             } else {
-                tableBody.append('<tr><td colspan="8" class="text-center">No bills found.</td></tr>');
+                tableBody.append('<tr><td colspan="9" class="text-center">No bills found.</td></tr>');
                 $('#pagination-container').empty(); // Clear pagination if no bills
+                toggleBulkDeleteButton(); // Hide button if no bills
             }
         }
 
@@ -1075,6 +1145,12 @@
                 e.preventDefault();
                 const url = $(this).attr('href');
                 fetchBillsData(url);
+            });
+
+            // View Bill PDF functionality
+            $(document).on('click', '.view-bill-btn', function() {
+                const billId = $(this).data('id');
+                window.open(`/billing/generate_bill_pdf/${billId}/`, '_blank');
             });
 
             // Delete bill

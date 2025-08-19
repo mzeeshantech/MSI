@@ -1,22 +1,206 @@
-{% extends 'base.html' %}
-{% block title %}Bill Detail{% endblock %}
-{% block content %}
-<h3>Bill #{{ bill.id }}</h3>
-<p><strong>Customer:</strong> {{ bill.customer.name }}</p>
-<p><strong>Total:</strong> {{ bill.total_amount }}</p>
-<p><strong>Paid:</strong> {{ bill.amount_paid }}</p>
-<p><strong>Discount:</strong> {{ bill.discount }}</p>
-<h5>Items</h5>
-<table class="table">
-    <thead>
-        <tr><th>Item</th><th>Qty</th><th>Unit Price</th></tr>
-    </thead>
-    <tbody>
-        {% for item in bill.items.all %}
-        <tr>
-            <td>{{ item.item.name }}</td><td>{{ item.quantity }}</td><td>{{ item.price_per_unit }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% endblock %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bill #{{ bill.bill_number }}</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            font-size: 12px;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            border: 1px solid #eee;
+            padding: 30px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #007bff;
+        }
+        .header p {
+            margin: 5px 0;
+            font-size: 10px;
+            color: #666;
+        }
+        .bill-info, .customer-info {
+            width: 48%;
+            display: inline-block;
+            vertical-align: top;
+            margin-bottom: 20px;
+        }
+        .bill-info {
+            float: right;
+            text-align: right;
+        }
+        .customer-info {
+            float: left;
+        }
+        .info-block p {
+            margin: 2px 0;
+        }
+        .info-block strong {
+            color: #555;
+        }
+        .section-title {
+            font-size: 14px;
+            color: #007bff;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #eee;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f8f8;
+            font-weight: bold;
+            color: #555;
+        }
+        .text-right {
+            text-align: right;
+        }
+        .total-row th, .total-row td {
+            border-top: 2px solid #007bff;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            color: #666;
+            font-size: 10px;
+        }
+        .status-open { color: #007bff; font-weight: bold; }
+        .status-closed { color: #28a745; font-weight: bold; }
+        .status-cancelled { color: #dc3545; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>INVOICE</h1>
+            <p>Your Company Name Here</p>
+            <p>123 Main Street, City, Country</p>
+            <p>Phone: +123 456 7890 | Email: info@yourcompany.com</p>
+        </div>
+
+        <div style="overflow: hidden;">
+            <div class="customer-info info-block">
+                <div class="section-title">Bill To:</div>
+                <p><strong>Name:</strong> {{ bill.customer.name }}</p>
+                <p><strong>CNIC:</strong> {{ bill.customer.cnic|default:"N/A" }}</p>
+                <p><strong>Phone:</strong> {{ bill.customer.phone|default:"N/A" }}</p>
+                <p><strong>Address:</strong> {{ bill.customer.address|default:"N/A" }}</p>
+            </div>
+
+            <div class="bill-info info-block">
+                <div class="section-title">Bill Details:</div>
+                <p><strong>Bill No:</strong> {{ bill.bill_number }}</p>
+                <p><strong>Date:</strong> {{ bill.created_at|date:"d M, Y" }}</p>
+                <p><strong>Status:</strong> <span class="status-{{ bill.status }}">{{ bill.get_status_display }}</span></p>
+                <p><strong>Payment Method:</strong> {{ bill.get_payment_method_display }}</p>
+            </div>
+        </div>
+
+        <div class="section-title">Items:</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Item Name</th>
+                    <th>Category</th>
+                    <th class="text-right">Quantity</th>
+                    <th class="text-right">Price/Unit</th>
+                    <th class="text-right">Discount</th>
+                    <th class="text-right">Line Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in bill_items %}
+                <tr>
+                    <td>{{ item.item.sku }}</td>
+                    <td>{{ item.item.name }}</td>
+                    <td>{{ item.item.category.name }}</td>
+                    <td class="text-right">{{ item.quantity|floatformat:"2" }} {{ item.item.unit_of_measure }}</td>
+                    <td class="text-right">Rs. {{ item.price_per_unit|floatformat:"2" }}</td>
+                    <td class="text-right">
+                        {% if item.discount_type == 'percentage' %}
+                            {{ item.discount_amount|floatformat:"2" }}%
+                        {% elif item.discount_type == 'fixed' %}
+                            Rs. {{ item.discount_amount|floatformat:"2" }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
+                    <td class="text-right">
+                        Rs. {{ item.get_line_total|floatformat:"2" }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="6" class="text-right">Subtotal:</th>
+                    <td class="text-right">Rs. {{ bill.get_items_total|floatformat:"2" }}</td>
+                </tr>
+                <tr>
+                    <th colspan="6" class="text-right">Rent Amount:</th>
+                    <td class="text-right">Rs. {{ bill.rent_amount|floatformat:"2" }} (Payer: {{ bill.get_rent_payer_display }})</td>
+                </tr>
+                {% if bill.rent_payer == 'both' %}
+                <tr>
+                    <th colspan="6" class="text-right">Customer Rent:</th>
+                    <td class="text-right">Rs. {{ bill.rent_customer_amount|floatformat:"2" }}</td>
+                </tr>
+                <tr>
+                    <th colspan="6" class="text-right">Company Rent:</th>
+                    <td class="text-right">Rs. {{ bill.rent_company_amount|floatformat:"2" }}</td>
+                </tr>
+                {% endif %}
+                <tr class="total-row">
+                    <th colspan="6" class="text-right">GRAND TOTAL:</th>
+                    <td class="text-right">Rs. {{ bill.total_amount|floatformat:"2" }}</td>
+                </tr>
+                <tr>
+                    <th colspan="6" class="text-right">Cash Received:</th>
+                    <td class="text-right">Rs. {{ bill.amount_paid|floatformat:"2" }}</td>
+                </tr>
+                {% if bill.payment_method == 'online' or bill.payment_method == 'both' %}
+                <tr>
+                    <th colspan="6" class="text-right">Online Received:</th>
+                    <td class="text-right">Rs. {{ bill.online_amount_paid|floatformat:"2" }}</td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <th colspan="6" class="text-right">Change Due:</th>
+                    <td class="text-right">Rs. {{ bill.get_change_due|floatformat:"2" }}</td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div class="footer">
+            <p>Thank you for your business!</p>
+            <p>This is a computer generated invoice and does not require a signature.</p>
+        </div>
+    </div>
+</body>
+</html>

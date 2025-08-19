@@ -9,9 +9,61 @@ import json
 from decimal import Decimal
 import openpyxl
 from openpyxl.styles import Font, Border, Side, Alignment
+from weasyprint import HTML
+from django.template.loader import render_to_string
 
 from stock.models import InventoryItem, InventoryCategory
 from .models import Bill, BillItem, Customer
+
+@csrf_exempt
+def bulk_delete_bills(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            bill_ids = data.get('bill_ids', [])
+
+            if not bill_ids:
+                return JsonResponse({'success': False, 'error': 'No bill IDs provided.'}, status=400)
+
+            with transaction.atomic():
+                deleted_count = 0
+                for bill_id in bill_ids:
+                    try:
+                        bill = Bill.objects.get(id=bill_id)
+                        # Restore stock for each item in the bill
+                        for bill_item in bill.items.all():
+                            inventory_item = bill_item.item
+                            inventory_item.total_stock_quantity += bill_item.quantity
+                            inventory_item.save()
+                        bill.delete()
+                        deleted_count += 1
+                    except Bill.DoesNotExist:
+                        # Optionally log or handle bills that don't exist
+                        pass
+                return JsonResponse({'success': True, 'message': f'{deleted_count} bill(s) deleted successfully!'})
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': 'Invalid JSON data.'}, status=400)
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+def generate_bill_pdf(request, bill_id):
+    bill = get_object_or_404(Bill, id=bill_id)
+    
+    context = {
+        'bill': bill,
+        'bill_items': bill.items.all(),
+    }
+    
+    html_string = render_to_string('billing/bill_detail.html', context)
+    
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="bill_{bill.bill_number}.pdf"'
+    
+    pdf_file = HTML(string=html_string).write_pdf()
+    response.write(pdf_file)
+    
+    return response
 
 @csrf_exempt
 def mark_bill_closed(request, bill_id):
@@ -26,6 +78,15 @@ def mark_bill_closed(request, bill_id):
             # but as a backend safeguard, we can re-calculate or check if total_amount == amount_paid
             # For simplicity, we'll assume the frontend check is sufficient for now,
             # but a more robust solution would involve passing change_due or re-calculating here.
+            # Deduct stock for each item in the bill
+            for bill_item in bill.items.all():
+                inventory_item = bill_item.item
+                if inventory_item.total_stock_quantity < bill_item.quantity:
+                    # This scenario should ideally be prevented by frontend validation or during bill generation/update
+                    # but as a safeguard, we can prevent closing if stock is insufficient.
+                    return JsonResponse({'success': False, 'message': f'Not enough stock for {inventory_item.name} to close the bill. Available: {inventory_item.total_stock_quantity}'}, status=400)
+                inventory_item.total_stock_quantity -= bill_item.quantity
+                inventory_item.save()
             
             bill.status = 'closed'
             bill.save()
@@ -286,10 +347,7 @@ def generate_bill(request):
                         discount_type=item_discount_type,
                         discount_amount=item_discount_amount
                     )
-                    
-                    # Reduce stock
-                    inventory_item.total_stock_quantity -= quantity
-                    inventory_item.save()
+                    # Stock deduction will happen when the bill is marked as 'closed'.
 
             return JsonResponse({'success': True, 'message': 'Bill generated successfully!'})
         except json.JSONDecodeError:
@@ -452,8 +510,7 @@ def update_bill(request, bill_id):
                         discount_amount=item_discount_amount
                     )
                     
-                    inventory_item.total_stock_quantity -= quantity
-                    inventory_item.save()
+                    # Stock deduction will happen when the bill is marked as 'closed'.
 
             return JsonResponse({'success': True, 'message': 'Bill updated successfully!'})
         except json.JSONDecodeError:

@@ -1,5 +1,6 @@
 from django.db import models
 from stock.models import InventoryItem
+from decimal import Decimal
 
 class Customer(models.Model):
     name = models.CharField(max_length=100)
@@ -45,11 +46,21 @@ class Bill(models.Model):
     def __str__(self):
         return self.bill_number if self.bill_number else f"Bill #{self.id}"
 
+    def get_items_total(self):
+        total = Decimal(0)
+        for item in self.items.all():
+            total += item.get_line_total()
+        return total
+
+    def get_change_due(self):
+        total_paid = self.amount_paid + self.online_amount_paid
+        return total_paid - self.total_amount
+
 
 class BillItem(models.Model):
     bill = models.ForeignKey(Bill, on_delete=models.CASCADE, related_name='items')
     item = models.ForeignKey(InventoryItem, on_delete=models.CASCADE)
-    quantity = models.IntegerField()
+    quantity = models.DecimalField(max_digits=10, decimal_places=2)
     price_per_unit = models.DecimalField(max_digits=10, decimal_places=2)
     
     DISCOUNT_TYPE_CHOICES = [
@@ -59,6 +70,14 @@ class BillItem(models.Model):
     ]
     discount_type = models.CharField(max_length=10, choices=DISCOUNT_TYPE_CHOICES, default='none')
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    def get_line_total(self):
+        price_after_discount = self.price_per_unit
+        if self.discount_type == 'percentage':
+            price_after_discount -= (self.price_per_unit * (self.discount_amount / 100))
+        elif self.discount_type == 'fixed':
+            price_after_discount -= self.discount_amount
+        return self.quantity * price_after_discount
 
     def __str__(self):
         return f"{self.item.name} x {self.quantity}"
