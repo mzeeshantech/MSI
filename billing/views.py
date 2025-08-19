@@ -9,6 +9,8 @@ import json
 from decimal import Decimal
 import openpyxl
 from openpyxl.styles import Font, Border, Side, Alignment
+from weasyprint import HTML
+from django.template.loader import render_to_string
 
 from stock.models import InventoryItem, InventoryCategory
 from .models import Bill, BillItem, Customer
@@ -44,6 +46,24 @@ def bulk_delete_bills(request):
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
     return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+def generate_bill_pdf(request, bill_id):
+    bill = get_object_or_404(Bill, id=bill_id)
+    
+    context = {
+        'bill': bill,
+        'bill_items': bill.items.all(),
+    }
+    
+    html_string = render_to_string('billing/bill_detail.html', context)
+    
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="bill_{bill.bill_number}.pdf"'
+    
+    pdf_file = HTML(string=html_string).write_pdf()
+    response.write(pdf_file)
+    
+    return response
 
 @csrf_exempt
 def mark_bill_closed(request, bill_id):

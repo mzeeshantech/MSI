@@ -309,6 +309,9 @@
                             <td>Rs. {{ bill.amount_paid|floatformat:"2"|intcomma }}</td>
                             <td><span class="status-{{ bill.status }}">{{ bill.get_status_display }}</span></td>
                             <td class="action-buttons">
+                                <button type="button" class="btn btn-info action-btn view-bill-btn" data-id="{{ bill.id }}" title="View PDF">
+                                    <i class="fas fa-file-pdf font-10"></i>
+                                </button>
                                 <button type="button" class="btn btn-primary action-btn edit-bill-btn" data-id="{{ bill.id }}" title="Edit">
                                     <i class="fas fa-edit font-10"></i>
                                 </button>
@@ -1089,6 +1092,9 @@
                             <td class="text-success">Rs. ${parseFloat(bill.amount_paid).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td><span class="status-${bill.status}">${bill.get_status_display}</span></td>
                             <td class="action-buttons">
+                                <button type="button" class="btn btn-sm btn-info action-btn view-bill-btn" data-id="${bill.id}" title="View PDF">
+                                    <i class="fas fa-file-pdf font-10"></i>
+                                </button>
                                 <button type="button" class="btn btn-sm btn-primary action-btn edit-bill-btn" data-id="${bill.id}" title="Edit">
                                     <i class="fas fa-edit font-10"></i>
                                 </button>
@@ -1139,6 +1145,12 @@
                 e.preventDefault();
                 const url = $(this).attr('href');
                 fetchBillsData(url);
+            });
+
+            // View Bill PDF functionality
+            $(document).on('click', '.view-bill-btn', function() {
+                const billId = $(this).data('id');
+                window.open(`/billing/generate_bill_pdf/${billId}/`, '_blank');
             });
 
             // Delete bill
