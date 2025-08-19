@@ -213,7 +213,7 @@
         <div class="header">
             <h1><i class="fas fa-wallet"></i> Wallet Overview</h1>
             <div class="d-flex align-items-center">
-                <h4 class="m-0 font-weight-bold text-primary">Current Balance: PKR {{ current_balance|floatformat:2 }}</h4>
+                <h4 class="m-0 font-weight-bold text-primary" id="current_balance_display">Current Balance: PKR {{ current_balance|floatformat:2 }}</h4>
                 <button type="button" class="btn btn-add ms-3" data-bs-toggle="modal" data-bs-target="#addEntryModal" onclick="resetEntryForm()">
                     <i class="fas fa-plus"></i> Add New Entry
                 </button>
@@ -406,9 +406,11 @@
                     if (data.success) {
                         const addEntryModal = bootstrap.Modal.getInstance(document.getElementById('addEntryModal'));
                         addEntryModal.hide();
-                        location.reload(); // Reload the page after successful save
+                        renderEntries(data); // Render updated entries and pagination
+                        document.getElementById('current_balance_display').innerText = `PKR ${parseFloat(data.current_balance).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                        alert(data.message); // Show success message
                     } else {
-                        alert("Error: " + data.message);
+                        alert("Error: " + (data.message || "An unknown error occurred."));
                     }
                 })
                 .catch(error => {
@@ -449,7 +451,7 @@
                 const row = $(this).closest('tr');
 
                 if (confirm("Are you sure you want to delete this wallet entry?")) {
-                    fetch(`/delete_wallet_entry/${entryId}/`, { // Assuming a URL for deleting wallet entries
+                    fetch(`/wallet/delete_wallet_entry/${entryId}/`, { // Assuming a URL for deleting wallet entries
                         method: 'POST',
                         headers: {
                             'X-CSRFToken': csrftoken,
@@ -459,9 +461,11 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            location.reload(); // Reload the page after successful deletion
+                            renderEntries(data); // Render updated entries and pagination
+                            document.getElementById('current_balance_display').innerText = `PKR ${parseFloat(data.current_balance).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                            alert(data.message); // Show success message
                         } else {
-                            alert("Error: " + data.error);
+                            alert("Error: " + (data.error || "An unknown error occurred."));
                         }
                     })
                     .catch(err => console.error(err));
