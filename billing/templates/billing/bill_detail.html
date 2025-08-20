@@ -4,90 +4,156 @@
     <title>Bill #{{ bill.bill_number }}</title>
     <style>
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 0;
             color: #333;
-            font-size: 12px;
+            font-size: 10px; /* Slightly smaller base font for more content */
+            line-height: 1.4;
         }
         .container {
             width: 100%;
-            max-width: 800px;
-            margin: 0 auto;
-            border: 1px solid #eee;
-            padding: 30px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+            max-width: 780px; /* Adjusted for better fit on A4 */
+            margin: 20px auto;
+            border: 1px solid #ddd;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            background-color: #fff;
         }
         .header {
-            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #007bff;
         }
-        .header h1 {
+        .header .logo {
+            max-width: 120px;
+            height: auto;
+        }
+        .header-info {
+            text-align: right;
+        }
+        .header-info h1 {
             margin: 0;
-            font-size: 24px;
+            font-size: 28px;
             color: #007bff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
-        .header p {
-            margin: 5px 0;
+        .header-info p {
+            margin: 2px 0;
             font-size: 10px;
             color: #666;
         }
-        .bill-info, .customer-info {
+        .company-details {
+            text-align: left;
+            font-size: 10px;
+            color: #555;
+            margin-top: 10px;
+        }
+        .company-details p {
+            margin: 1px 0;
+        }
+
+        .bill-details-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 25px;
+        }
+        .customer-info, .bill-info {
             width: 48%;
-            display: inline-block;
-            vertical-align: top;
-            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+        .customer-info {
+            float: left;
         }
         .bill-info {
             float: right;
             text-align: right;
         }
-        .customer-info {
-            float: left;
-        }
         .info-block p {
-            margin: 2px 0;
+            margin: 3px 0;
+            font-size: 11px;
         }
         .info-block strong {
-            color: #555;
+            color: #444;
+            display: inline-block;
+            width: 100px; /* Adjusted width to prevent text wrapping */
         }
         .section-title {
-            font-size: 14px;
+            font-size: 13px;
             color: #007bff;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #cfe2ff; /* Lighter blue border */
             padding-bottom: 5px;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
+            font-weight: bold;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
+            background-color: #fff;
         }
         th, td {
-            border: 1px solid #eee;
-            padding: 8px;
+            border: 1px solid #e0e0e0; /* Lighter border */
+            padding: 10px 8px;
             text-align: left;
+            font-size: 10px;
         }
         th {
-            background-color: #f8f8f8;
+            background-color: #e9f5ff; /* Light blue header */
             font-weight: bold;
-            color: #555;
+            color: #333;
+            text-transform: uppercase;
+        }
+        tr:nth-child(even) {
+            background-color: #fdfdfd; /* Subtle alternating row color */
         }
         .text-right {
             text-align: right;
         }
-        .total-row th, .total-row td {
-            border-top: 2px solid #007bff;
-            font-size: 13px;
+        .total-summary {
+            width: 40%; /* Make total summary narrower */
+            float: right;
+            margin-top: 15px;
+            border: 1px solid #007bff;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        .total-summary table {
+            margin-bottom: 0;
+            border: none;
+        }
+        .total-summary th, .total-summary td {
+            border: none;
+            padding: 5px 8px;
+            font-size: 11px;
+        }
+        .total-summary .grand-total-row th, .total-summary .grand-total-row td {
+            border-top: 1px solid #007bff;
+            font-size: 14px;
             font-weight: bold;
+            padding-top: 8px;
+        }
+        .notes-section {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            font-size: 10px;
+            color: #555;
         }
         .footer {
             text-align: center;
-            margin-top: 30px;
-            padding-top: 15px;
-            border-top: 1px solid #eee;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #007bff;
             color: #666;
-            font-size: 10px;
+            font-size: 9px;
         }
         .status-open { color: #007bff; font-weight: bold; }
         .status-closed { color: #28a745; font-weight: bold; }
@@ -97,13 +163,21 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>INVOICE</h1>
-            <p>Your Company Name Here</p>
-            <p>123 Main Street, City, Country</p>
-            <p>Phone: +123 456 7890 | Email: info@yourcompany.com</p>
+            <div class="company-details">
+                <p><strong>MSI Steel Factory</strong></p>
+                <p>123 Main Street, City, Country</p>
+                <p>Phone: +123 456 7890</p>
+                <p>Email: info@yourcompany.com</p>
+            </div>
+            <div class="header-info">
+                <h1>INVOICE</h1>
+                <p><strong>Bill No:</strong> {{ bill.bill_number }}</p>
+                <p><strong>Date:</strong> {{ bill.created_at|date:"d M, Y" }}</p>
+                <p><strong>Status:</strong> <span class="status-{{ bill.status }}">{{ bill.get_status_display }}</span></p>
+            </div>
         </div>
 
-        <div style="overflow: hidden;">
+        <div class="bill-details-section">
             <div class="customer-info info-block">
                 <div class="section-title">Bill To:</div>
                 <p><strong>Name:</strong> {{ bill.customer.name }}</p>
@@ -113,11 +187,13 @@
             </div>
 
             <div class="bill-info info-block">
-                <div class="section-title">Bill Details:</div>
-                <p><strong>Bill No:</strong> {{ bill.bill_number }}</p>
-                <p><strong>Date:</strong> {{ bill.created_at|date:"d M, Y" }}</p>
-                <p><strong>Status:</strong> <span class="status-{{ bill.status }}">{{ bill.get_status_display }}</span></p>
+                <div class="section-title">Payment Details:</div>
                 <p><strong>Payment Method:</strong> {{ bill.get_payment_method_display }}</p>
+                <p><strong>Cash Received:</strong> Rs. {{ bill.amount_paid|floatformat:"2" }}</p>
+                {% if bill.payment_method == 'online' or bill.payment_method == 'both' %}
+                <p><strong>Online Received:</strong> Rs. {{ bill.online_amount_paid|floatformat:"2" }}</p>
+                {% endif %}
+                <p><strong>Change Due:</strong> Rs. {{ bill.get_change_due|floatformat:"2" }}</p>
             </div>
         </div>
 
@@ -157,49 +233,46 @@
                 </tr>
                 {% endfor %}
             </tbody>
-            <tfoot>
+        </table>
+
+        <div class="total-summary">
+            <table>
                 <tr>
-                    <th colspan="6" class="text-right">Subtotal:</th>
+                    <th class="text-right">Subtotal:</th>
                     <td class="text-right">Rs. {{ bill.get_items_total|floatformat:"2" }}</td>
                 </tr>
                 <tr>
-                    <th colspan="6" class="text-right">Rent Amount:</th>
+                    <th class="text-right">Rent Amount:</th>
                     <td class="text-right">Rs. {{ bill.rent_amount|floatformat:"2" }} (Payer: {{ bill.get_rent_payer_display }})</td>
                 </tr>
                 {% if bill.rent_payer == 'both' %}
                 <tr>
-                    <th colspan="6" class="text-right">Customer Rent:</th>
+                    <th class="text-right">Customer Rent:</th>
                     <td class="text-right">Rs. {{ bill.rent_customer_amount|floatformat:"2" }}</td>
                 </tr>
                 <tr>
-                    <th colspan="6" class="text-right">Company Rent:</th>
+                    <th class="text-right">Company Rent:</th>
                     <td class="text-right">Rs. {{ bill.rent_company_amount|floatformat:"2" }}</td>
                 </tr>
                 {% endif %}
-                <tr class="total-row">
-                    <th colspan="6" class="text-right">GRAND TOTAL:</th>
+                <tr class="grand-total-row">
+                    <th class="text-right">GRAND TOTAL:</th>
                     <td class="text-right">Rs. {{ bill.total_amount|floatformat:"2" }}</td>
                 </tr>
-                <tr>
-                    <th colspan="6" class="text-right">Cash Received:</th>
-                    <td class="text-right">Rs. {{ bill.amount_paid|floatformat:"2" }}</td>
-                </tr>
-                {% if bill.payment_method == 'online' or bill.payment_method == 'both' %}
-                <tr>
-                    <th colspan="6" class="text-right">Online Received:</th>
-                    <td class="text-right">Rs. {{ bill.online_amount_paid|floatformat:"2" }}</td>
-                </tr>
-                {% endif %}
-                <tr>
-                    <th colspan="6" class="text-right">Change Due:</th>
-                    <td class="text-right">Rs. {{ bill.get_change_due|floatformat:"2" }}</td>
-                </tr>
-            </tfoot>
-        </table>
+            </table>
+        </div>
+
+        <div style="clear: both;"></div> <!-- Clear floats -->
+
+        <!-- <div class="notes-section">
+            <p><strong>Notes:</strong></p>
+            <p>Thank you for your business! We appreciate your prompt payment.</p>
+            <p>This is a computer generated invoice and does not require a signature.</p>
+        </div> -->
 
         <div class="footer">
-            <p>Thank you for your business!</p>
-            <p>This is a computer generated invoice and does not require a signature.</p>
+            <p>&copy; {{ "now"|date:"Y" }} Your Company Name. All rights reserved.</p>
+            <p>For any inquiries, please contact us at info@yourcompany.com</p>
         </div>
     </div>
 </body>
