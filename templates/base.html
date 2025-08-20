@@ -135,7 +135,7 @@
                 <a href="{% url 'stock_items' %}" class="sub-link {% if selected_page == 'stock_items' %}active{% endif %}">• Items</a>
             </div>
             <a href="{% url 'billing_home' %}" {% if selected_page == "billing" %} class="active" {% endif %}><i class="fas fa-file-invoice"></i> Billing</a>
-            <a href="{% url 'expenses_home' %}" {% if selected_page == "expenses" %} class="active" {% endif %}><i class="fas fa-money-bill"></i> Expenses</a>
+            <a href="{% url 'billing_home' %}" {% if selected_page == "expenses" %} class="active" {% endif %}><i class="fas fa-money-bill"></i> Advance Booking</a>
             <a href="{% url 'employees_home' %}" {% if selected_page == "employees" %} class="active" {% endif %}><i class="fas fa-users"></i> Employees</a>
             <a href="{% url 'reports_home' %}" {% if selected_page == "reports" %} class="active" {% endif %}><i class="fas fa-chart-line"></i> Reports</a>
             <a href="{% url 'wallet_home' %}" {% if selected_page == "wallet" %} class="active" {% endif %}><i class="fas fa-wallet"></i> Wallet</a>
