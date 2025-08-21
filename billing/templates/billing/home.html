@@ -263,11 +263,11 @@
 {% block content %}
     <div class="container-fluid">
         <div class="header">
-            <h1 class="font-20"><i class="fas fa-file-invoice font-13"></i> BILLING</h1>
+            <h1 class="font-20"><i class="fas fa-file-invoice font-13"></i> {% if selected_page == 'advance_booking' %}ADVANCE BOOKING{% else %}BILLING{% endif %}</h1>
             <div class="d-flex align-items-center">
                 <input type="text" class="search-bar font-13" id="globalSearch" name="global_search" placeholder="Search by Customer Name or Bill No.">
                 <button type="button" class="btn btn-add ms-2 font-14" data-bs-toggle="modal" data-bs-target="#generateBillModal">
-                    <i class="fas fa-file-invoice font-10"></i> Generate Bill
+                    <i class="fas fa-file-invoice font-10"></i> {% if selected_page == 'advance_booking' %}Book Now{% else %}Generate Bill{% endif %}
                 </button>
                 <button type="button" class="btn btn-export ms-2 font-14" id="downloadExcelBtn">
                     <i class="fas fa-file-export font-10"></i> Export
@@ -309,8 +309,11 @@
                             <td>Rs. {{ bill.amount_paid|floatformat:"2"|intcomma }}</td>
                             <td><span class="status-{{ bill.status }}">{{ bill.get_status_display }}</span></td>
                             <td class="action-buttons">
-                                <button type="button" class="btn btn-info action-btn view-bill-btn" data-id="{{ bill.id }}" title="View PDF">
+                                <button type="button" class="btn btn-info action-btn view-bill-btn" data-id="{{ bill.id }}" title="View Company PDF">
                                     <i class="fas fa-file-pdf font-10"></i>
+                                </button>
+                                <button type="button" class="btn btn-secondary action-btn view-customer-bill-btn" data-id="{{ bill.id }}" title="View Customer PDF">
+                                    <i class="fas fa-file-pdf text"></i>
                                 </button>
                                 <button type="button" class="btn btn-primary action-btn edit-bill-btn" data-id="{{ bill.id }}" title="Edit">
                                     <i class="fas fa-edit font-10"></i>
@@ -338,7 +341,7 @@
                 {% csrf_token %}
                 <div class="modal-content">
                     <div class="modal-header bg-light">
-                        <h5 class="modal-title" id="generateBillModalLabel"><i class="fas fa-file-invoice"></i> Generate New Bill</h5>
+                        <h5 class="modal-title" id="generateBillModalLabel"><i class="fas fa-file-invoice"></i> {% if selected_page == 'advance_booking' %}New Booking{% else %}Generate New Bill{% endif %}</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <input type="hidden" id="bill_id" name="bill_id">
@@ -508,7 +511,7 @@
 
                     </div>
                     <div class="modal-footer bg-light">
-                        <button type="submit" class="btn btn-success" id="generateBillSubmitBtn"><i class="fas fa-check"></i> Generate Bill</button>
+                        <button type="submit" class="btn btn-success" id="generateBillSubmitBtn"><i class="fas fa-check"></i> {% if selected_page == 'advance_booking' %}Book Now{% else %}Generate Bill{% endif %}</button>
                         <button type="button" class="btn btn-warning" id="markBillClosedBtn" style="display: none;"><i class="fas fa-lock"></i> Mark as Closed</button>
                         <button type="button" class="btn btn-danger" data-bs-dismiss="modal"><i class="fas fa-times"></i> Cancel</button>
                     </div>
@@ -826,6 +829,7 @@
 
                 const plainFormData = Object.fromEntries(formData.entries());
                 plainFormData.bill_items = billItems; // billItems is already an array of objects
+                plainFormData.is_booking = "{{ selected_page }}" === "advance_booking";
 
                 // Add rent_customer_amount and rent_company_amount if rent_payer is 'both'
                 if (plainFormData.rent_payer === 'both') {
@@ -901,8 +905,13 @@
                 $('#online_received').val('0.00'); // Reset online received
                 $('#change_due').val('0.00');
                 $('#bill_id').val(''); // Clear bill ID
-                $('#generateBillModalLabel').html('<i class="fas fa-file-invoice"></i> Generate New Bill'); // Reset modal title
-                $('#generateBillSubmitBtn').html('<i class="fas fa-check"></i> Generate Bill'); // Reset button text
+                if ("{{ selected_page }}" === "advance_booking") {
+                    $('#generateBillModalLabel').html('<i class="fas fa-file-invoice"></i> New Booking');
+                    $('#generateBillSubmitBtn').html('<i class="fas fa-check"></i> Book Now');
+                } else {
+                    $('#generateBillModalLabel').html('<i class="fas fa-file-invoice"></i> Generate New Bill');
+                    $('#generateBillSubmitBtn').html('<i class="fas fa-check"></i> Generate Bill');
+                }
                 $('#markBillClosedBtn').hide(); // Hide mark as closed button
             });
 
@@ -910,74 +919,80 @@
             $(document).on('click', '.edit-bill-btn', function() {
                 const billId = $(this).data('id');
                 $('#bill_id').val(billId); // Set bill ID in hidden input
-                $('#generateBillModalLabel').html('<i class="fas fa-edit"></i> Edit Bill'); // Change modal title
-                        $('#generateBillSubmitBtn').html('<i class="fas fa-check"></i> Update Bill'); // Change button text
+                
+                if ("{{ selected_page }}" === "advance_booking") {
+                    $('#generateBillModalLabel').html('<i class="fas fa-edit"></i> Edit Booking');
+                    $('#generateBillSubmitBtn').html('<i class="fas fa-check"></i> Update Booking');
+                } else {
+                    $('#generateBillModalLabel').html('<i class="fas fa-edit"></i> Edit Bill');
+                    $('#generateBillSubmitBtn').html('<i class="fas fa-check"></i> Update Bill');
+                }
 
-                        // Fetch bill details
-                        fetch(`/billing/get_bill_details/${billId}/`, {
-                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.success) {
-                                const bill = data.bill;
-                                // Populate customer details
-                                $('#customer_name').val(bill.customer.name);
-                                $('#customer_cnic').val(bill.customer.cnic);
-                                $('#customer_phone').val(bill.customer.phone);
-                                $('#customer_address').val(bill.customer.address);
+                // Fetch bill details
+                fetch(`/billing/get_bill_details/${billId}/`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        const bill = data.bill;
+                        // Populate customer details
+                        $('#customer_name').val(bill.customer.name);
+                        $('#customer_cnic').val(bill.customer.cnic);
+                        $('#customer_phone').val(bill.customer.phone);
+                        $('#customer_address').val(bill.customer.address);
 
-                                // Populate rent details
-                                $('#rent_amount').val(parseFloat(bill.rent_amount).toFixed(2));
-                                $('#rent_payer').val(bill.rent_payer).trigger('change'); // Trigger change for visibility
-                                if (bill.rent_payer === 'both') {
-                                    $('#rent_customer_amount').val(parseFloat(bill.rent_customer_amount).toFixed(2));
-                                    $('#rent_company_amount').val(parseFloat(bill.rent_company_amount).toFixed(2));
-                                }
+                        // Populate rent details
+                        $('#rent_amount').val(parseFloat(bill.rent_amount).toFixed(2));
+                        $('#rent_payer').val(bill.rent_payer).trigger('change'); // Trigger change for visibility
+                        if (bill.rent_payer === 'both') {
+                            $('#rent_customer_amount').val(parseFloat(bill.rent_customer_amount).toFixed(2));
+                            $('#rent_company_amount').val(parseFloat(bill.rent_company_amount).toFixed(2));
+                        }
 
-                                // Populate payment details
-                                $('#payment_method').val(bill.payment_method).trigger('change');
-                                $('#cash_received').val(parseFloat(bill.amount_paid).toFixed(2));
-                                if (bill.payment_method === 'online' || bill.payment_method === 'both') {
-                                    $('#online_received').val(parseFloat(bill.online_amount_paid).toFixed(2));
-                                }
+                        // Populate payment details
+                        $('#payment_method').val(bill.payment_method).trigger('change');
+                        $('#cash_received').val(parseFloat(bill.amount_paid).toFixed(2));
+                        if (bill.payment_method === 'online' || bill.payment_method === 'both') {
+                            $('#online_received').val(parseFloat(bill.online_amount_paid).toFixed(2));
+                        }
 
-                                // Populate bill items
-                                billItems = bill.items.map(item => ({
-                                    itemId: item.item_id,
-                                    sku: item.sku,
-                                    name: item.name,
-                                    categoryName: item.category_name,
-                                    quantity: parseFloat(item.quantity),
-                                    retailPrice: parseFloat(item.retail_price),
-                                    itemDiscountType: item.discount_type,
-                                    itemDiscountAmount: parseFloat(item.discount_amount),
-                                    unitOfMeasure: item.unit_of_measure
-                                }));
-                                renderBillItems();
-                                calculateGrandTotal(); // Recalculate after populating items
+                        // Populate bill items
+                        billItems = bill.items.map(item => ({
+                            itemId: item.item_id,
+                            sku: item.sku,
+                            name: item.name,
+                            categoryName: item.category_name,
+                            quantity: parseFloat(item.quantity),
+                            retailPrice: parseFloat(item.retail_price),
+                            itemDiscountType: item.discount_type,
+                            itemDiscountAmount: parseFloat(item.discount_amount),
+                            unitOfMeasure: item.unit_of_measure
+                        }));
+                        renderBillItems();
+                        calculateGrandTotal(); // Recalculate after populating items
 
                                 // Show/hide Mark as Closed button and disable Update Bill button based on bill status
-                                if (bill.status === 'open') {
+                                if (bill.status === 'open' || bill.status === 'advance') {
                                     $('#markBillClosedBtn').show();
                                     $('#generateBillSubmitBtn').prop('disabled', false);
                                 } else {
-                                    $('#markBillClosedBtn').hide();
-                                    $('#generateBillSubmitBtn').prop('disabled', true); // Disable update button if bill is closed or cancelled
-                                }
+                            $('#markBillClosedBtn').hide();
+                            $('#generateBillSubmitBtn').prop('disabled', true); // Disable update button if bill is closed or cancelled
+                        }
 
-                                // Open the modal
-                                const generateBillModal = new bootstrap.Modal(document.getElementById('generateBillModal'));
-                                generateBillModal.show();
+                        // Open the modal
+                        const generateBillModal = new bootstrap.Modal(document.getElementById('generateBillModal'));
+                        generateBillModal.show();
 
-                            } else {
-                                alert("Error fetching bill details: " + data.message);
-                            }
-                        })
-                        .catch(err => {
-                            console.error('Error fetching bill details:', err);
-                            alert('An error occurred while fetching bill details.');
-                        });
+                    } else {
+                        alert("Error fetching bill details: " + data.message);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error fetching bill details:', err);
+                    alert('An error occurred while fetching bill details.');
+                });
             });
 
             // Mark Bill as Closed functionality
@@ -1151,6 +1166,12 @@
             $(document).on('click', '.view-bill-btn', function() {
                 const billId = $(this).data('id');
                 window.open(`/billing/generate_bill_pdf/${billId}/`, '_blank');
+            });
+
+            // View Customer Bill PDF functionality
+            $(document).on('click', '.view-customer-bill-btn', function() {
+                const billId = $(this).data('id');
+                window.open(`/billing/generate_bill_pdf/${billId}/?type=customer`, '_blank');
             });
 
             // Delete bill

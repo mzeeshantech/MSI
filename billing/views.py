@@ -55,12 +55,20 @@ def generate_bill_pdf(request, bill_id):
         'bill_items': bill.items.all(),
     }
     
-    html_string = render_to_string('billing/bill_detail.html', context)
+    pdf_type = request.GET.get('type', 'default')
+    if pdf_type == 'customer':
+        template_name = 'billing/customer_bill_detail.html'
+        filename = f'customer_bill_{bill.bill_number}.pdf'
+    else:
+        template_name = 'billing/bill_detail.html'
+        filename = f'bill_{bill.bill_number}.pdf'
+
+    html_string = render_to_string(template_name, context)
     
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'inline; filename="bill_{bill.bill_number}.pdf"'
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
     
-    pdf_file = HTML(string=html_string).write_pdf()
+    pdf_file = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf()
     response.write(pdf_file)
     
     return response
@@ -156,7 +164,7 @@ def export_bills_excel(request):
     return response
 
 def billing_home(request):
-    bills_list = Bill.objects.all().order_by('-created_at')
+    bills_list = Bill.objects.all().filter(status__in=['open', 'closed']).order_by('-created_at')
 
     search_term = request.GET.get('search_term')
 
@@ -255,6 +263,7 @@ def generate_bill(request):
             payment_method = data.get('payment_method', 'cash')
             cash_received = Decimal(data.get('cash_received', 0))
             online_received = Decimal(data.get('online_received', 0))
+            is_booking = data.get('is_booking', False)
 
             if not customer_name:
                 return JsonResponse({'success': False, 'message': 'Customer name is required.'}, status=400)
@@ -321,7 +330,7 @@ def generate_bill(request):
                     rent_customer_amount=rent_customer_amount, # New field
                     rent_company_amount=rent_company_amount, # New field
                     payment_method=payment_method,
-                    status='open' # Set status to open on generation
+                    status='advance' if is_booking else 'open'
                 )
                 bill.bill_number = f"BILL-{bill.id:06d}" # Generate bill number based on ID
                 bill.save()
@@ -535,3 +544,56 @@ def delete_bill(request, bill_id):
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)}, status=500)
     return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+def advance_booking_view(request):
+    bills_list = Bill.objects.filter(status='advance').order_by('-created_at')
+
+    search_term = request.GET.get('search_term')
+
+    if search_term:
+        bills_list = bills_list.filter(
+            Q(customer__name__icontains=search_term) |
+            Q(bill_number__icontains=search_term)
+        )
+
+    paginator = Paginator(bills_list, 10)
+    page = request.GET.get('page')
+
+    try:
+        bills = paginator.page(page)
+    except PageNotAnInteger:
+        bills = paginator.page(1)
+    except EmptyPage:
+        bills = paginator.page(paginator.num_pages)
+    
+    context = {
+        'selected_page': 'advance_booking',
+        'bills': bills,
+        'categories' : InventoryCategory.objects.all(),
+        'page_obj': bills,
+    }
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        # If it's an AJAX request, return JSON response for table and pagination
+        bills_data = []
+        for bill in bills:
+            bills_data.append({
+                'id': bill.id,
+                'bill_number': bill.bill_number,
+                'customer__name': bill.customer.name,
+                'created_at': bill.created_at.isoformat(),
+                'total_amount': float(bill.total_amount),
+                'amount_paid': float(bill.amount_paid),
+                'rent_amount': float(bill.rent_amount),
+                'status': bill.status,
+                'get_status_display': bill.get_status_display(),
+            })
+        
+        pagination_html = render(request, 'stock/pagination.html', {'page_obj': bills, 'request': request}).content.decode('utf-8')
+        
+        return JsonResponse({
+            'bills': bills_data,
+            'pagination_html': pagination_html
+        })
+
+    return render(request, 'billing/home.html', context)

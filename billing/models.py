@@ -22,6 +22,7 @@ class Bill(models.Model):
     BILL_STATUS_CHOICES = [
         ('open', 'Open'),
         ('closed', 'Closed'),
+        ('advance', 'Advance'),
     ]
     RENT_PAYER_CHOICES = [
         ('customer', 'Customer'),

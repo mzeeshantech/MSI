@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html>
 <head>
@@ -47,16 +48,16 @@
             font-size: 10px;
             color: #666;
         }
+        .logo-details {
+            display: flex;
+            align-items: center;  
+            gap: 10px;   
+        }
         .company-details {
             text-align: left;
             font-size: 10px;
             color: #555;
             margin-top: 10px;
-        }
-        .logo-details {
-            display: flex;
-            align-items: center;  
-            gap: 10px;   
         }
         .company-details p {
             margin: 1px 0;
@@ -189,20 +190,10 @@
             <div class="customer-info info-block">
                 <div class="section-title">Bill To:</div>
                 <p><strong>Name:</strong> {{ bill.customer.name }}</p>
-                <p><strong>CNIC:</strong> {{ bill.customer.cnic|default:"N/A" }}</p>
                 <p><strong>Phone:</strong> {{ bill.customer.phone|default:"N/A" }}</p>
                 <p><strong>Address:</strong> {{ bill.customer.address|default:"N/A" }}</p>
             </div>
 
-            <div class="bill-info info-block">
-                <div class="section-title">Payment Details:</div>
-                <p><strong>Payment Method:</strong> {{ bill.get_payment_method_display }}</p>
-                <p><strong>Cash Received:</strong> Rs. {{ bill.amount_paid|floatformat:"2" }}</p>
-                {% if bill.payment_method == 'online' or bill.payment_method == 'both' %}
-                <p><strong>Online Received:</strong> Rs. {{ bill.online_amount_paid|floatformat:"2" }}</p>
-                {% endif %}
-                <p><strong>Change Due:</strong> Rs. {{ bill.get_change_due|floatformat:"2" }}</p>
-            </div>
         </div>
 
         <div class="section-title">Items:</div>
@@ -214,7 +205,6 @@
                     <th>Category</th>
                     <th class="text-right">Quantity</th>
                     <th class="text-right">Price/Unit</th>
-                    <th class="text-right">Discount</th>
                     <th class="text-right">Line Total</th>
                 </tr>
             </thead>
@@ -226,15 +216,6 @@
                     <td>{{ item.item.category.name }}</td>
                     <td class="text-right">{{ item.quantity|floatformat:"2" }} {{ item.item.unit_of_measure }}</td>
                     <td class="text-right">Rs. {{ item.price_per_unit|floatformat:"2" }}</td>
-                    <td class="text-right">
-                        {% if item.discount_type == 'percentage' %}
-                            {{ item.discount_amount|floatformat:"2" }}%
-                        {% elif item.discount_type == 'fixed' %}
-                            Rs. {{ item.discount_amount|floatformat:"2" }}
-                        {% else %}
-                            N/A
-                        {% endif %}
-                    </td>
                     <td class="text-right">
                         Rs. {{ item.get_line_total|floatformat:"2" }}
                     </td>
@@ -253,16 +234,9 @@
                     <th class="text-right">Rent Amount:</th>
                     <td class="text-right">Rs. {{ bill.rent_amount|floatformat:"2" }} (Payer: {{ bill.get_rent_payer_display }})</td>
                 </tr>
-                {% if bill.rent_payer == 'both' %}
                 <tr>
-                    <th class="text-right">Customer Rent:</th>
-                    <td class="text-right">Rs. {{ bill.rent_customer_amount|floatformat:"2" }}</td>
+                    <th class="text-right">Any pending:</th>
                 </tr>
-                <tr>
-                    <th class="text-right">Company Rent:</th>
-                    <td class="text-right">Rs. {{ bill.rent_company_amount|floatformat:"2" }}</td>
-                </tr>
-                {% endif %}
                 <tr class="grand-total-row">
                     <th class="text-right">GRAND TOTAL:</th>
                     <td class="text-right">Rs. {{ bill.total_amount|floatformat:"2" }}</td>
@@ -281,6 +255,13 @@
         <div class="footer">
             <p>&copy; {{ "now"|date:"Y" }} Your Company Name. All rights reserved.</p>
             <p>For any inquiries, please contact us at info@yourcompany.com</p>
+            <div style="text-align: left; display: inline-block;">
+                <p>
+                    <strong>1-</strong> Only steel return is possible.   
+                    <strong>2-</strong> Steel should be free from rust & dust.   
+                    <strong>3-</strong> Return possible within 3 days of sale.   
+                    <strong>4-</strong> MSI is not responsible to fullfill any return.</p>
+            </div>
         </div>
     </div>
 </body>

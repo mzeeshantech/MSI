@@ -127,16 +127,27 @@
         <h2><i class="fas fa-warehouse"></i> MSI Depot</h2>
         <div class="nav-links">
             <a href="{% url 'dashboard' %}" {% if selected_page == "dashbaord" %} class="active" {% endif %}><i class="fas fa-file-invoice"></i> Dashboard</a>
-            <button class="nav-link" onclick="toggleSubmenu()">
+            <button class="nav-link" onclick="toggleSubmenu('stockSubmenu')">
                 <i class="fas fa-boxes"></i> Stock <i class="fas fa-caret-down ms-auto"></i>
             </button>
             <div id="stockSubmenu" style="display: none;">
                 <a href="{% url 'inventory_categories' %}" class="sub-link {% if selected_page == 'inventory_categories' %}active{% endif %}">• Categories</a>
                 <a href="{% url 'stock_items' %}" class="sub-link {% if selected_page == 'stock_items' %}active{% endif %}">• Items</a>
             </div>
-            <a href="{% url 'billing_home' %}" {% if selected_page == "billing" %} class="active" {% endif %}><i class="fas fa-file-invoice"></i> Billing</a>
-            <a href="{% url 'billing_home' %}" {% if selected_page == "expenses" %} class="active" {% endif %}><i class="fas fa-money-bill"></i> Advance Booking</a>
-            <a href="{% url 'employees_home' %}" {% if selected_page == "employees" %} class="active" {% endif %}><i class="fas fa-users"></i> Employees</a>
+            <button class="nav-link" onclick="toggleSubmenu('billingSubmenu')">
+                <i class="fas fa-file-invoice"></i> Billing <i class="fas fa-caret-down ms-auto"></i>
+            </button>
+            <div id="billingSubmenu" style="display: none;">
+                <a href="{% url 'billing_home' %}" class="sub-link {% if selected_page == 'billing' %}active{% endif %}">• Current Billing</a>
+                <a href="{% url 'advance_booking' %}" class="sub-link {% if selected_page == 'advance_booking' %}active{% endif %}">• Advance Booking</a>
+            </div>
+            <button class="nav-link" onclick="toggleSubmenu('employeesSubmenu')">
+                <i class="fas fa-users"></i> Employees <i class="fas fa-caret-down ms-auto"></i>
+            </button>
+            <div id="employeesSubmenu" style="display: none;">
+                <a href="{% url 'employees_home' %}" class="sub-link {% if selected_page == 'employees' %}active{% endif %}">• Employee</a>
+                <a href="{% url 'employee_advances' %}" class="sub-link {% if selected_page == 'employee_advances' %}active{% endif %}">• Advance Employee</a>
+            </div>
             <a href="{% url 'reports_home' %}" {% if selected_page == "reports" %} class="active" {% endif %}><i class="fas fa-chart-line"></i> Reports</a>
             <a href="{% url 'wallet_home' %}" {% if selected_page == "wallet" %} class="active" {% endif %}><i class="fas fa-wallet"></i> Wallet</a>
         </div>
@@ -146,18 +157,28 @@
         {% block content %}{% endblock %}
     </div>
     <script>
-        function toggleSubmenu() {
-            const submenu = document.getElementById('stockSubmenu');
+        function toggleSubmenu(submenuId) {
+            const submenu = document.getElementById(submenuId);
             submenu.style.display = submenu.style.display === 'none' ? 'block' : 'none';
         }
 
-        // Keep stock submenu open if a sub-link is active
+        // Keep submenus open if a sub-link is active
         document.addEventListener('DOMContentLoaded', function() {
             const selectedPage = "{{ selected_page }}";
             const stockSubmenu = document.getElementById('stockSubmenu');
+            const billingSubmenu = document.getElementById('billingSubmenu');
+            const employeesSubmenu = document.getElementById('employeesSubmenu');
 
             if (selectedPage === 'inventory_categories' || selectedPage === 'stock_items') {
                 stockSubmenu.style.display = 'block';
+            }
+
+            if (selectedPage === 'billing' || selectedPage === 'advance_booking') {
+                billingSubmenu.style.display = 'block';
+            }
+
+            if (selectedPage === 'employees' || selectedPage === 'employee_advances') {
+                employeesSubmenu.style.display = 'block';
             }
         });
     </script>
