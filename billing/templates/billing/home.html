@@ -1101,19 +1101,23 @@
                         <tr>
                             <td><input type="checkbox" class="bill-checkbox" data-id="${bill.id}"></td>
                             <td>${bill.bill_number}</td>
+                            <td>${bill.customer__name}</td>
                             <td>${new Date(bill.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
                             <td class="text-success">Rs. ${parseFloat(bill.total_amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td>Rs. ${parseFloat(bill.rent_amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td class="text-success">Rs. ${parseFloat(bill.amount_paid).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td><span class="status-${bill.status}">${bill.get_status_display}</span></td>
                             <td class="action-buttons">
-                                <button type="button" class="btn btn-sm btn-info action-btn view-bill-btn" data-id="${bill.id}" title="View PDF">
+                                <button type="button" class="btn btn-info action-btn view-bill-btn" data-id="${bill.id}" title="View Company PDF">
                                     <i class="fas fa-file-pdf font-10"></i>
                                 </button>
-                                <button type="button" class="btn btn-sm btn-primary action-btn edit-bill-btn" data-id="${bill.id}" title="Edit">
+                                <button type="button" class="btn btn-secondary action-btn view-customer-bill-btn" data-id="${bill.id}" title="View Customer PDF">
+                                    <i class="fas fa-file-pdf text"></i>
+                                </button>
+                                <button type="button" class="btn btn-primary action-btn edit-bill-btn" data-id="${bill.id}" title="Edit">
                                     <i class="fas fa-edit font-10"></i>
                                 </button>
-                                <button type="button" class="btn btn-sm btn-danger action-btn delete-bill-btn" data-id="${bill.id}" title="Delete">
+                                <button type="button" class="btn btn-danger action-btn delete-bill-btn" data-id="${bill.id}" title="Delete">
                                     <i class="fas fa-trash-alt font-10"></i>
                                 </button>
                             </td>
@@ -1147,7 +1151,8 @@
             $('#globalSearch').on('keyup change', function() {
                 const searchTerm = $(this).val();
                 
-                const url = new URL("{% url 'billing_home' %}", window.location.origin);
+                const baseUrl = "{% if selected_page == 'advance_booking' %}{% url 'advance_booking' %}{% else %}{% url 'billing_home' %}{% endif %}";
+                const url = new URL(baseUrl, window.location.origin);
                 if (searchTerm) {
                     url.searchParams.append('search_term', searchTerm);
                 }

@@ -218,6 +218,61 @@ def billing_home(request):
 
     return render(request, 'billing/home.html', context)
 
+def paid_later(request):
+    bills_list = Bill.objects.filter(status='paid_later').order_by('-created_at')
+
+    search_term = request.GET.get('search_term')
+
+    if search_term:
+        bills_list = bills_list.filter(
+            Q(customer__name__icontains=search_term) |
+            Q(bill_number__icontains=search_term)
+        )
+
+    paginator = Paginator(bills_list, 10) # Show 10 bills per page
+    page = request.GET.get('page')
+
+    try:
+        bills = paginator.page(page)
+    except PageNotAnInteger:
+        # If page is not an integer, deliver first page.
+        bills = paginator.page(1)
+    except EmptyPage:
+        # If page is out of range (e.g. 9999), deliver last page of results.
+        bills = paginator.page(paginator.num_pages)
+    
+    context = {
+        'selected_page': 'billing',
+        'bills': bills,
+        'categories' : InventoryCategory.objects.all(),
+        'page_obj': bills, # Pass page_obj to the context for initial load
+    }
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        # If it's an AJAX request, return JSON response for table and pagination
+        bills_data = []
+        for bill in bills:
+            bills_data.append({
+                'id': bill.id,
+                'bill_number': bill.bill_number,
+                'customer__name': bill.customer.name,
+                'created_at': bill.created_at.isoformat(),
+                'total_amount': float(bill.total_amount),
+                'amount_paid': float(bill.amount_paid),
+                'rent_amount': float(bill.rent_amount),
+                'status': bill.status,
+                'get_status_display': bill.get_status_display(),
+            })
+        
+        pagination_html = render(request, 'stock/pagination.html', {'page_obj': bills, 'request': request}).content.decode('utf-8')
+        
+        return JsonResponse({
+            'bills': bills_data,
+            'pagination_html': pagination_html
+        })
+
+    return render(request, 'billing/paid_later.html', context)
+
 def bill_list(request):
     # This view might become redundant if billing_home handles all listing.
     # For now, keeping it as is, but it might be removed later.

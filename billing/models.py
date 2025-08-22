@@ -23,6 +23,7 @@ class Bill(models.Model):
         ('open', 'Open'),
         ('closed', 'Closed'),
         ('advance', 'Advance'),
+        ('paid_later', 'Paid Later'),
     ]
     RENT_PAYER_CHOICES = [
         ('customer', 'Customer'),

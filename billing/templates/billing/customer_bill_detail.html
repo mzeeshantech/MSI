@@ -27,7 +27,7 @@
             align-items: center;
             margin-bottom: 30px;
             padding-bottom: 15px;
-            border-bottom: 2px solid #007bff;
+            border-bottom: 2px solid #03a739ff;
         }
         .header .logo {
             max-width: 120px;
@@ -39,7 +39,7 @@
         .header-info h1 {
             margin: 0;
             font-size: 28px;
-            color: #007bff;
+            color: #03a739ff;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
@@ -89,12 +89,12 @@
         .info-block strong {
             color: #444;
             display: inline-block;
-            width: 100px; /* Adjusted width to prevent text wrapping */
+            width: 100px;
         }
         .section-title {
             font-size: 13px;
-            color: #007bff;
-            border-bottom: 1px solid #cfe2ff; /* Lighter blue border */
+            color: #03a739ff;
+            border-bottom: 1px solid #cfffe1ff;
             padding-bottom: 5px;
             margin-bottom: 12px;
             font-weight: bold;
@@ -106,28 +106,28 @@
             background-color: #fff;
         }
         th, td {
-            border: 1px solid #e0e0e0; /* Lighter border */
+            border: 1px solid #e0e0e0;
             padding: 10px 8px;
             text-align: left;
             font-size: 10px;
         }
         th {
-            background-color: #e9f5ff; /* Light blue header */
+            background-color: #d2fde4ff;
             font-weight: bold;
             color: #333;
             text-transform: uppercase;
         }
         tr:nth-child(even) {
-            background-color: #fdfdfd; /* Subtle alternating row color */
+            background-color: #fdfdfd;
         }
         .text-right {
             text-align: right;
         }
         .total-summary {
-            width: 40%; /* Make total summary narrower */
+            width: 40%;
             float: right;
             margin-top: 15px;
-            border: 1px solid #007bff;
+            border: 1px solid #03a739ff;
             border-radius: 5px;
             padding: 10px;
         }
@@ -141,7 +141,7 @@
             font-size: 11px;
         }
         .total-summary .grand-total-row th, .total-summary .grand-total-row td {
-            border-top: 1px solid #007bff;
+            border-top: 1px solid #03a739ff;
             font-size: 14px;
             font-weight: bold;
             padding-top: 8px;
@@ -157,7 +157,7 @@
             text-align: center;
             margin-top: 40px;
             padding-top: 20px;
-            border-top: 2px solid #007bff;
+            border-top: 2px solid #03a739ff;
             color: #666;
             font-size: 9px;
         }
@@ -173,8 +173,8 @@
                 <img src="/static/images/logo.png" alt="Company Logo" class="logo">
                 <div class = "company-details">
                     <p><strong>MSI Sale Depot</strong></p>
-                    <p>Opp Balkees Sarwar, Near Parventhy, Khana</p>
-                    <p>Phone: +92 3214144365</p>
+                    <p>Opp Bilqees Sarwar, Near Parventhy, Khana</p>
+                    <p>Phone: 03210911126</p>
                     <p>Email: msisaledepot@gmail.com</p>
                 </div>
             </div>
@@ -182,7 +182,6 @@
                 <h1>INVOICE</h1>
                 <p><strong>Bill No:</strong> {{ bill.bill_number }}</p>
                 <p><strong>Date:</strong> {{ bill.created_at|date:"d M, Y" }}</p>
-                <p><strong>Status:</strong> <span class="status-{{ bill.status }}">{{ bill.get_status_display }}</span></p>
             </div>
         </div>
 
@@ -202,7 +201,6 @@
                 <tr>
                     <th>SKU</th>
                     <th>Item Name</th>
-                    <th>Category</th>
                     <th class="text-right">Quantity</th>
                     <th class="text-right">Price/Unit</th>
                     <th class="text-right">Line Total</th>
@@ -213,7 +211,6 @@
                 <tr>
                     <td>{{ item.item.sku }}</td>
                     <td>{{ item.item.name }}</td>
-                    <td>{{ item.item.category.name }}</td>
                     <td class="text-right">{{ item.quantity|floatformat:"2" }} {{ item.item.unit_of_measure }}</td>
                     <td class="text-right">Rs. {{ item.price_per_unit|floatformat:"2" }}</td>
                     <td class="text-right">
@@ -232,7 +229,7 @@
                 </tr>
                 <tr>
                     <th class="text-right">Rent Amount:</th>
-                    <td class="text-right">Rs. {{ bill.rent_amount|floatformat:"2" }} (Payer: {{ bill.get_rent_payer_display }})</td>
+                    <td class="text-right">Rs. {{ bill.rent_amount|floatformat:"2" }}</td>
                 </tr>
                 <tr>
                     <th class="text-right">Any pending:</th>
@@ -257,10 +254,11 @@
             <p>For any inquiries, please contact us at info@yourcompany.com</p>
             <div style="text-align: left; display: inline-block;">
                 <p>
-                    <strong>1-</strong> Only steel return is possible.   
-                    <strong>2-</strong> Steel should be free from rust & dust.   
-                    <strong>3-</strong> Return possible within 3 days of sale.   
-                    <strong>4-</strong> MSI is not responsible to fullfill any return.</p>
+                     کسی بھی واپسی کو پورا کرنے کا ذمہ دار نہیں ہے۔ MSI<strong> -4</strong> 
+                     فروخت کے 3 دن کے اندر واپسی ممکن ہے۔ <strong> -3</strong> 
+                     اسٹیل زنگ اور دھول سے پاک ہونا چاہیے۔ <strong> -2</strong>  
+                     صرف اسٹیل کی واپسی ممکن ہے۔<strong> -1</strong>
+                </p>
             </div>
         </div>
     </div>

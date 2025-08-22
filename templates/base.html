@@ -140,6 +140,7 @@
             <div id="billingSubmenu" style="display: none;">
                 <a href="{% url 'billing_home' %}" class="sub-link {% if selected_page == 'billing' %}active{% endif %}">• Current Billing</a>
                 <a href="{% url 'advance_booking' %}" class="sub-link {% if selected_page == 'advance_booking' %}active{% endif %}">• Advance Booking</a>
+                <a href="{% url 'paid_later' %}" class="sub-link {% if selected_page == 'paid_later' %}active{% endif %}">• Pending Payment</a>
             </div>
             <button class="nav-link" onclick="toggleSubmenu('employeesSubmenu')">
                 <i class="fas fa-users"></i> Employees <i class="fas fa-caret-down ms-auto"></i>
