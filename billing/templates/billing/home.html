@@ -313,7 +313,7 @@
                                     <i class="fas fa-file-pdf font-10"></i>
                                 </button>
                                 <button type="button" class="btn btn-secondary action-btn view-customer-bill-btn" data-id="{{ bill.id }}" title="View Customer PDF">
-                                    <i class="fas fa-file-pdf text"></i>
+                                    <i class="fas fa-file-pdf font-10"></i>
                                 </button>
                                 <button type="button" class="btn btn-primary action-btn edit-bill-btn" data-id="{{ bill.id }}" title="Edit">
                                     <i class="fas fa-edit font-10"></i>
@@ -1006,13 +1006,24 @@
                 }
 
                 if (confirm('Are you sure you want to mark this bill as closed? This action cannot be undone.')) {
+                    const paymentData = {
+                        rent_amount: parseFloat($('#rent_amount').val()) || 0,
+                        rent_payer: $('#rent_payer').val(),
+                        rent_customer_amount: parseFloat($('#rent_customer_amount').val()) || 0,
+                        rent_company_amount: parseFloat($('#rent_company_amount').val()) || 0,
+                        payment_method: $('#payment_method').val(),
+                        cash_received: parseFloat($('#cash_received').val()) || 0,
+                        online_received: parseFloat($('#online_received').val()) || 0,
+                    };
+
                     fetch(`/billing/mark_bill_closed/${billId}/`, {
                         method: 'POST',
                         headers: {
                             'X-CSRFToken': csrftoken,
                             'Content-Type': 'application/json',
                             'X-Requested-With': 'XMLHttpRequest'
-                        }
+                        },
+                        body: JSON.stringify(paymentData)
                     })
                     .then(response => response.json())
                     .then(data => {
@@ -1112,7 +1123,7 @@
                                     <i class="fas fa-file-pdf font-10"></i>
                                 </button>
                                 <button type="button" class="btn btn-secondary action-btn view-customer-bill-btn" data-id="${bill.id}" title="View Customer PDF">
-                                    <i class="fas fa-file-pdf text"></i>
+                                    <i class="fas fa-file-pdf font-10"></i>
                                 </button>
                                 <button type="button" class="btn btn-primary action-btn edit-bill-btn" data-id="${bill.id}" title="Edit">
                                     <i class="fas fa-edit font-10"></i>

@@ -147,7 +147,7 @@
             </button>
             <div id="employeesSubmenu" style="display: none;">
                 <a href="{% url 'employees_home' %}" class="sub-link {% if selected_page == 'employees' %}active{% endif %}">• Employee</a>
-                <a href="{% url 'employee_advances' %}" class="sub-link {% if selected_page == 'employee_advances' %}active{% endif %}">• Advance Employee</a>
+                <a href="{% url 'employee_advances' %}" class="sub-link {% if selected_page == 'employee_advances' %}active{% endif %}">• Advance Salary</a>
             </div>
             <a href="{% url 'reports_home' %}" {% if selected_page == "reports" %} class="active" {% endif %}><i class="fas fa-chart-line"></i> Reports</a>
             <a href="{% url 'wallet_home' %}" {% if selected_page == "wallet" %} class="active" {% endif %}><i class="fas fa-wallet"></i> Wallet</a>
@@ -174,7 +174,7 @@
                 stockSubmenu.style.display = 'block';
             }
 
-            if (selectedPage === 'billing' || selectedPage === 'advance_booking') {
+            if (selectedPage === 'billing' || selectedPage === 'advance_booking' || selectedPage === 'paid_later') {
                 billingSubmenu.style.display = 'block';
             }
 

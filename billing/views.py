@@ -81,21 +81,31 @@ def mark_bill_closed(request, bill_id):
             if bill.status == 'closed':
                 return JsonResponse({'success': False, 'message': 'Bill is already closed.'}, status=400)
             
-            # Ensure change_due is 0 before closing
-            # This logic should ideally be handled on the frontend before sending the request,
-            # but as a backend safeguard, we can re-calculate or check if total_amount == amount_paid
-            # For simplicity, we'll assume the frontend check is sufficient for now,
-            # but a more robust solution would involve passing change_due or re-calculating here.
+            data = json.loads(request.body)
+            cash_received = Decimal(data.get('cash_received', 0))
+            online_received = Decimal(data.get('online_received', 0))
+            payment_method = data.get('payment_method', 'cash')
+            rent_amount = Decimal(data.get('rent_amount', 0))
+            rent_payer = data.get('rent_payer', 'customer')
+            rent_customer_amount = Decimal(data.get('rent_customer_amount', 0))
+            rent_company_amount = Decimal(data.get('rent_company_amount', 0))
+
             # Deduct stock for each item in the bill
-            for bill_item in bill.items.all():
-                inventory_item = bill_item.item
-                if inventory_item.total_stock_quantity < bill_item.quantity:
-                    # This scenario should ideally be prevented by frontend validation or during bill generation/update
-                    # but as a safeguard, we can prevent closing if stock is insufficient.
-                    return JsonResponse({'success': False, 'message': f'Not enough stock for {inventory_item.name} to close the bill. Available: {inventory_item.total_stock_quantity}'}, status=400)
-                inventory_item.total_stock_quantity -= bill_item.quantity
-                inventory_item.save()
+            if bill.status != 'paid_later':
+                for bill_item in bill.items.all():
+                    inventory_item = bill_item.item
+                    if inventory_item.total_stock_quantity < bill_item.quantity:
+                        return JsonResponse({'success': False, 'message': f'Not enough stock for {inventory_item.name} to close the bill. Available: {inventory_item.total_stock_quantity}'}, status=400)
+                    inventory_item.total_stock_quantity -= bill_item.quantity
+                    inventory_item.save()
             
+            bill.amount_paid = cash_received
+            bill.online_amount_paid = online_received
+            bill.payment_method = payment_method
+            bill.rent_amount = rent_amount
+            bill.rent_payer = rent_payer
+            bill.rent_customer_amount = rent_customer_amount
+            bill.rent_company_amount = rent_company_amount
             bill.status = 'closed'
             bill.save()
             return JsonResponse({'success': True, 'message': 'Bill marked as closed successfully!'})
@@ -229,20 +239,18 @@ def paid_later(request):
             Q(bill_number__icontains=search_term)
         )
 
-    paginator = Paginator(bills_list, 10) # Show 10 bills per page
+    paginator = Paginator(bills_list, 10)
     page = request.GET.get('page')
 
     try:
         bills = paginator.page(page)
     except PageNotAnInteger:
-        # If page is not an integer, deliver first page.
         bills = paginator.page(1)
     except EmptyPage:
-        # If page is out of range (e.g. 9999), deliver last page of results.
         bills = paginator.page(paginator.num_pages)
     
     context = {
-        'selected_page': 'billing',
+        'selected_page': 'paid_later',
         'bills': bills,
         'categories' : InventoryCategory.objects.all(),
         'page_obj': bills, # Pass page_obj to the context for initial load
@@ -319,6 +327,7 @@ def generate_bill(request):
             cash_received = Decimal(data.get('cash_received', 0))
             online_received = Decimal(data.get('online_received', 0))
             is_booking = data.get('is_booking', False)
+            status = data.get('status', 'open')
 
             if not customer_name:
                 return JsonResponse({'success': False, 'message': 'Customer name is required.'}, status=400)
@@ -385,7 +394,7 @@ def generate_bill(request):
                     rent_customer_amount=rent_customer_amount, # New field
                     rent_company_amount=rent_company_amount, # New field
                     payment_method=payment_method,
-                    status='advance' if is_booking else 'open'
+                    status='advance' if is_booking else status
                 )
                 bill.bill_number = f"BILL-{bill.id:06d}" # Generate bill number based on ID
                 bill.save()
@@ -411,7 +420,9 @@ def generate_bill(request):
                         discount_type=item_discount_type,
                         discount_amount=item_discount_amount
                     )
-                    # Stock deduction will happen when the bill is marked as 'closed'.
+                    if status == 'paid_later':
+                        inventory_item.total_stock_quantity -= quantity
+                        inventory_item.save()
 
             return JsonResponse({'success': True, 'message': 'Bill generated successfully!'})
         except json.JSONDecodeError:
@@ -561,9 +572,11 @@ def update_bill(request, bill_id):
 
                     inventory_item = get_object_or_404(InventoryItem, id=item_id)
                     
-                    if inventory_item.total_stock_quantity < quantity:
-                        transaction.set_rollback(True)
-                        return JsonResponse({'success': False, 'message': f'Not enough stock for {inventory_item.name}. Available: {inventory_item.total_stock_quantity}'}, status=400)
+                    # Check stock before creating new BillItem and deducting
+                    if bill.status == 'paid_later': # Deduct stock for paid_later and advance bills immediately
+                        if inventory_item.total_stock_quantity < quantity:
+                            transaction.set_rollback(True)
+                            return JsonResponse({'success': False, 'message': f'Not enough stock for {inventory_item.name}. Available: {inventory_item.total_stock_quantity}'}, status=400)
 
                     BillItem.objects.create(
                         bill=bill,
@@ -574,7 +587,10 @@ def update_bill(request, bill_id):
                         discount_amount=item_discount_amount
                     )
                     
-                    # Stock deduction will happen when the bill is marked as 'closed'.
+                    # Deduct stock for new items if the bill is 'paid_later' or 'advance'
+                    if bill.status == 'paid_later':
+                        inventory_item.total_stock_quantity -= quantity
+                        inventory_item.save()
 
             return JsonResponse({'success': True, 'message': 'Bill updated successfully!'})
         except json.JSONDecodeError:

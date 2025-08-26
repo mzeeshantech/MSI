@@ -1,15 +1,555 @@
 {% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
 {% block title %}Employee Advances{% endblock %}
+
+{% block extra_head %}
+    <style>
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #333;
+            display: flex;
+            align-items: center;
+        }
+
+        .header h1 i { margin-right: 8px; }
+
+        .search-bar {
+            width: 200px;
+            margin-right: 10px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid #ced4da;
+        }
+
+        .btn-custom {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-custom:hover { background-color: #0056b3; }
+
+        table {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            vertical-align: middle;
+            font-size: 14px;
+            color: #444;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        th i {
+            margin-right: 5px;
+            color: #007bff;
+        }
+
+        .pagination {
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .black-color { color: black !important; }
+
+        .modal-content {
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+        }
+
+        .modal-header, .modal-footer {
+            background-color: #f8f9fa;
+            border-bottom: none;
+            border-top: none;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-body .row, .modal-body .mb-3 {
+            margin-bottom: 15px;
+        }
+
+        .form-label i { margin-right: 5px; }
+
+        .form-label.text-primary { color: #007bff; }
+        .form-label.text-success { color: #28a745; }
+        .form-label.text-warning { color: #ffc107; }
+        .form-label.text-info { color: #17a2b8; }
+        .form-label.text-secondary, .form-label.text-muted { color: #6c757d; }
+
+        .form-control[readonly] {
+            background-color: #e9ecef;
+            opacity: 1;
+        }
+
+        .btn-success {
+            background-color: #28a745;
+            border-color: #28a745;
+            padding: 8px 20px;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-success:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            border-color: #dc3545;
+            padding: 8px 20px;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-danger:hover {
+            background-color: #c82333;
+            border-color: #bd2130;
+        }
+
+        .btn i { margin-right: 5px; }
+
+        .was-validated .form-control:invalid {
+            border-color: #dc3545;
+            background-image: none;
+        }
+
+        .was-validated .form-control:invalid:focus {
+            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+        }
+
+        .invalid-feedback {
+            display: none;
+            width: 100%;
+            margin-top: 0.25rem;
+            font-size: 0.875em;
+            color: #dc3545;
+        }
+
+        .was-validated .form-control:invalid ~ .invalid-feedback {
+            display: block;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px; /* Changed from 50% to make them rectangular */
+            padding: 8px 12px; /* Added padding to make them look like buttons */
+            border: none;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .action-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .status-paid {
+            color: #28a745; /* Green color for Paid */
+            font-weight: bold;
+        }
+
+        .status-unpaid {
+            color: #dc3545; /* Red color for Unpaid */
+            font-weight: bold;
+        }
+
+        .btn-edit {
+            background-color: #0d6efd;
+            color: white;
+        }
+        .btn-edit:hover {
+            background-color: #0b5ed7;
+            transform: scale(1.05);
+        }
+
+        .btn-delete {
+            background-color: #dc3545;
+            color: white;
+        }
+        .btn-delete:hover {
+            background-color: #bb2d3b;
+            transform: scale(1.05);
+        }
+        .font-10 {
+            font-size: 10px;
+        }
+        .font-15 {
+            font-size: 15px;
+        }
+        .font-13 {
+            font-size: 13px;
+        }
+        .font-14 {
+            font-size: 14px;
+        }
+        .font-20 {
+            font-size: 20px !important;
+        }
+
+        @media (max-width: 768px) {
+            .modal-body .mb-3 { margin-bottom: 10px; }
+        }
+
+        #addEmployeeModal .modal-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            margin: auto; /* Ensure no conflicting margins */
+        }
+    </style>
+{% endblock %}
+
 {% block content %}
-<h3>Employee Advances</h3>
-<table class="table">
-    <thead>
-        <tr><th>Name</th><th>Amount</th><th>Date</th><th>Paid Back</th></tr>
-    </thead>
-    <tbody>
-        {% for adv in advances %}
-        <tr><td>{{ adv.employee_name }}</td><td>{{ adv.amount }}</td><td>{{ adv.date_given }}</td><td>{{ adv.paid_back }}</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="container-fluid">
+    <div class="header">
+        <h1 class="font-20"><i class="fas fa-money-bill-wave font-13"></i> Employee Advances</h1>
+        <div class="d-flex align-items-center">
+            <input type="text" class="search-bar font-13" id="advanceSearch" name="advance_search" placeholder="Search by employee name...">
+            <button type="button" class="btn btn-add ms-2 font-14" data-bs-toggle="modal" data-bs-target="#advanceSalaryModal" id="addAdvanceSalaryBtn">
+                <i class="fas fa-plus font-10"></i> Advance Salary
+            </button>
+        </div>
+    </div>
+
+    <div id="search-results">
+        {% if advances %}
+            <table class="table table-striped table-hover" id="advances_table">
+                <thead>
+                    <tr>
+                        <th><strong><i class="fas fa-user black-color font-10"></i> Name</strong></th>
+                        <th><strong><i class="fas fa-dollar-sign black-color font-10"></i> Amount</strong></th>
+                        <th><strong><i class="fas fa-calendar-alt black-color font-10"></i> Date</strong></th>
+                        <th><strong><i class="fas fa-calendar black-color font-10"></i> Month</strong></th>
+                        <th><strong><i class="fas fa-check-circle black-color font-10"></i> Paid Back</strong></th>
+                        <th><strong><i class="fas fa-edit black-color font-10"></i> Action</strong></th>
+                    </tr>
+                </thead>
+                <tbody id="advanceTableBody">
+                    {% for adv in advances %}
+                    <tr>
+                        <td>{{ adv.employee_name }}</td>
+                        <td>{{ adv.amount|floatformat:0 }}</td>
+                        <td>{{ adv.date_given }}</td>
+                        <td>{{ adv.month }}</td>
+                        <td>
+                            {% if adv.paid_back %}
+                                <span class="status-paid">Paid</span>
+                            {% else %}
+                                <span class="status-unpaid">Unpaid</span>
+                            {% endif %}
+                        </td>
+                        <td class="action-buttons">
+                            <a href="#" class="btn btn-sm btn-primary action-btn edit-advance" data-id="{{ adv.id }}" title="Edit">
+                                <i class="fas fa-edit font-10"></i>
+                            </a>
+                            <button type="button" class="btn btn-sm btn-danger action-btn delete-advance-btn" data-id="{{ adv.id }}" title="Delete">
+                                <i class="fas fa-trash-alt font-10"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-center">No advances found.</p>
+        {% endif %}
+    </div>
+
+<!-- Advance Salary Modal -->
+<div class="modal fade" id="advanceSalaryModal" tabindex="-1" aria-labelledby="advanceSalaryModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="advanceSalaryModalLabel">Grant Advance Salary</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="advanceSalaryForm" class="needs-validation" novalidate>
+                    {% csrf_token %}
+                    <input type="hidden" name="advance_id" id="advance_id">
+                    <div class="mb-3">
+                        <label for="employeeSelect" class="form-label">Employee</label>
+                        <select class="form-select" id="employeeSelect" name="employee" required>
+                            <!-- Options will be populated dynamically or from Django context -->
+                            {% for employee in employees %}
+                                <option value="{{ employee.id }}">{{ employee.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="invalid-feedback">Please select an employee.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="salaryAmount" class="form-label">Salary Amount</label>
+                        <input type="number" class="form-control" id="salaryAmount" name="amount" required>
+                        <div class="invalid-feedback">Please enter a valid amount.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="dateGiven" class="form-label">Date</label>
+                        <input type="date" class="form-control" id="dateGiven" name="date" required>
+                        <div class="invalid-feedback">Please select a date.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="monthSelect" class="form-label">Month</label>
+                        <select class="form-select" id="monthSelect" name="month" required>
+                            <option value="">Select Month</option>
+                            <option value="January">January</option>
+                            <option value="February">February</option>
+                            <option value="March">March</option>
+                            <option value="April">April</option>
+                            <option value="May">May</option>
+                            <option value="June">June</option>
+                            <option value="July">July</option>
+                            <option value="August">August</option>
+                            <option value="September">September</option>
+                            <option value="October">October</option>
+                            <option value="November">November</option>
+                            <option value="December">December</option>
+                        </select>
+                        <div class="invalid-feedback">Please select a month.</div>
+                    </div>
+                    <div class="mb-3 form-check" id="paidBackCheckboxContainer" style="display: none;">
+                        <input type="checkbox" class="form-check-input" id="paidBack" name="paid_back">
+                        <label class="form-check-label" for="paidBack">Paid Back</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" id="markAsPaidBackBtn" style="display: none;">Mark as Paid Back</button>
+                <button type="submit" form="advanceSalaryForm" class="btn btn-primary">Save Advance</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+    <script src="{% static 'js/jquery-3.6.0.min.js' %}"></script>
+    <script src="{% static 'js/bootstrap.bundle.min.js' %}" crossorigin="anonymous"></script>
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        function resetAdvanceForm() {
+            const form = document.getElementById("advanceSalaryForm");
+            form.reset();
+            document.getElementById("advance_id").value = "";
+            document.getElementById("employeeSelect").value = "";
+            document.getElementById("salaryAmount").value = "";
+            document.getElementById("dateGiven").value = "";
+            document.getElementById("monthSelect").value = "";
+            document.getElementById("paidBack").checked = false;
+            document.getElementById("advanceSalaryModalLabel").innerHTML = 'Grant Advance Salary';
+            document.getElementById("markAsPaidBackBtn").style.display = 'none';
+            document.getElementById("paidBackCheckboxContainer").style.display = 'none'; // Hide for new advance
+            form.classList.remove('was-validated');
+
+            let today = new Date();
+            let yyyy = today.getFullYear();
+            let mm = String(today.getMonth() + 1).padStart(2, '0'); // months are 0-based
+            let dd = String(today.getDate()).padStart(2, '0');
+            let currentDate = yyyy + '-' + mm + '-' + dd;
+            document.getElementById("dateGiven").value = currentDate;
+        }
+
+        $(document).ready(function() {
+            $('#addAdvanceSalaryBtn').on('click', function() {
+                resetAdvanceForm();
+            });
+
+            $('#advanceSalaryForm').on('submit', function(e) {
+                e.preventDefault();
+                const form = this;
+                if (!form.checkValidity()) {
+                    e.stopPropagation();
+                    form.classList.add('was-validated');
+                    return;
+                }
+
+                const advanceId = $('#advance_id').val();
+                const url = advanceId ? `/employees/advance/${advanceId}/` : "{% url 'grant_advance_salary' %}";
+                const type = advanceId ? "PUT" : "POST";
+
+                var formData = {
+                    employee: $('#employeeSelect').val(),
+                    amount: $('#salaryAmount').val(),
+                    date: $('#dateGiven').val(),
+                    month: $('#monthSelect').val(),
+                    paid_back: $('#paidBack').is(':checked'),
+                    csrfmiddlewaretoken: '{{ csrf_token }}'
+                };
+
+                $.ajax({
+                    url: url,
+                    type: type,
+                    data: JSON.stringify(formData),
+                    contentType: "application/json",
+                    headers: {
+                        'X-CSRFToken': csrftoken
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            $('#advanceSalaryModal').modal('hide');
+                            location.reload();
+                        } else {
+                            alert("Error: " + response.message);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        var errorMessage = xhr.responseJSON ? xhr.responseJSON.message : "An unexpected error occurred.";
+                        alert("AJAX Error: " + errorMessage);
+                    }
+                });
+            });
+
+            $('#advanceTableBody').on('click', '.edit-advance', function (e) {
+                e.preventDefault();
+                const advanceId = $(this).data('id');
+                
+                fetch(`/employees/advance/${advanceId}/`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+                    document.getElementById("advance_id").value = data.advance.id;
+                    document.getElementById("employeeSelect").value = data.advance.employee_id;
+                    document.getElementById("salaryAmount").value = data.advance.amount;
+                    document.getElementById("dateGiven").value = data.advance.date_given;
+                    document.getElementById("monthSelect").value = data.advance.month;
+                    document.getElementById("paidBack").checked = data.advance.paid_back;
+                    document.getElementById("advanceSalaryModalLabel").innerHTML = `Edit Advance`;
+                    document.getElementById("paidBackCheckboxContainer").style.display = 'block'; // Show for edit
+
+                    if (data.advance.paid_back) {
+                        document.getElementById("markAsPaidBackBtn").style.display = 'none';
+                    } else {
+                        document.getElementById("markAsPaidBackBtn").style.display = 'inline-block';
+                        document.getElementById("markAsPaidBackBtn").dataset.id = data.advance.id;
+                    }
+
+                    const modal = new bootstrap.Modal(document.getElementById('advanceSalaryModal'));
+                    modal.show();
+                })
+                .catch(err => console.error(err));
+            });
+
+            $('#markAsPaidBackBtn').on('click', function() {
+                const advanceId = $(this).data('id');
+                var formData = {
+                    employee: $('#employeeSelect').val(), // Keep existing values
+                    amount: $('#salaryAmount').val(),
+                    date: $('#dateGiven').val(),
+                    month: $('#monthSelect').val(),
+                    paid_back: true, // Set paid_back to true
+                    csrfmiddlewaretoken: '{{ csrf_token }}'
+                };
+
+                $.ajax({
+                    url: `/employees/advance/${advanceId}/`, // Use existing edit endpoint
+                    type: "PUT", // Use PUT for update
+                    data: JSON.stringify(formData),
+                    contentType: "application/json",
+                    headers: {
+                        'X-CSRFToken': csrftoken
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            $('#advanceSalaryModal').modal('hide');
+                            location.reload();
+                        } else {
+                            alert("Error: " + response.message);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        var errorMessage = xhr.responseJSON ? xhr.responseJSON.message : "An unexpected error occurred.";
+                        alert("AJAX Error: " + errorMessage);
+                    }
+                });
+            });
+
+            $('#advanceTableBody').on('click', '.delete-advance-btn', function (e) {
+                const advanceId = $(this).data('id');
+                if (confirm("Are you sure you want to delete this advance?")) {
+                    fetch(`/employees/advance/${advanceId}/`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRFToken': csrftoken,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            alert("Error: " + data.error);
+                        }
+                    })
+                    .catch(err => console.error(err));
+                }
+            });
+
+            $('#advanceSearch').on('keyup', function() {
+                const searchTerm = $(this).val().toLowerCase();
+                $('#advanceTableBody tr').filter(function() {
+                    $(this).toggle($(this).text().toLowerCase().indexOf(searchTerm) > -1)
+                });
+            });
+        });
+        document.addEventListener("DOMContentLoaded", function () {
+            let today = new Date();
+            let yyyy = today.getFullYear();
+            let mm = String(today.getMonth() + 1).padStart(2, '0'); // months are 0-based
+            let dd = String(today.getDate()).padStart(2, '0');
+            let currentDate = yyyy + '-' + mm + '-' + dd;
+
+            document.getElementById("dateGiven").value = currentDate;
+        });
+    </script>
 {% endblock %}

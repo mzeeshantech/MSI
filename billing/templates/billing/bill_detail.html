@@ -58,6 +58,11 @@
             align-items: center;  
             gap: 10px;   
         }
+        .logo-details img.logo {
+            max-width: 100px;
+            height: auto;
+            margin-right: 10px;
+        }
         .company-details p {
             margin: 1px 0;
         }
@@ -163,6 +168,56 @@
         .status-open { color: #007bff; font-weight: bold; }
         .status-closed { color: #28a745; font-weight: bold; }
         .status-cancelled { color: #dc3545; font-weight: bold; }
+
+        /* Responsive adjustments */
+        @media screen and (max-width: 600px) {
+            .container {
+                margin: 10px;
+                padding: 15px;
+            }
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                margin-bottom: 20px;
+            }
+            .header .logo {
+                max-width: 100px;
+                margin-bottom: 10px;
+            }
+            .header-info {
+                text-align: left;
+                width: 100%;
+            }
+            .header-info h1 {
+                font-size: 24px;
+            }
+            .logo-details {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+            .company-details {
+                margin-top: 5px;
+            }
+            .bill-details-section {
+                flex-direction: column;
+            }
+            .customer-info, .bill-info {
+                width: 100%;
+                margin-bottom: 15px;
+            }
+            .bill-info {
+                text-align: left;
+            }
+            .total-summary {
+                width: 100%;
+                float: none;
+            }
+            table, th, td {
+                font-size: 9px;
+                padding: 8px 5px;
+            }
+        }
     </style>
 </head>
 <body>
