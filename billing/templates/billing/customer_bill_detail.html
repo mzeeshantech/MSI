@@ -50,19 +50,22 @@
         }
         .logo-details {
             display: flex;
-            align-items: center;  
-            gap: 10px;   
+            align-items: center;
+            gap: 15px;
+            flex-wrap: nowrap; /* 🚫 no wrapping */
         }
+
         .logo-details img.logo {
-            max-width: 100px;
+            width: 80px;  /* fixed width */
             height: auto;
+            flex-shrink: 0; /* logo never shrinks */
             margin-right: 10px;
         }
+
         .company-details {
+            flex: 1;        /* take all remaining space */
+            min-width: 0;   /* prevent overflow */
             text-align: left;
-            font-size: 10px;
-            color: #555;
-            margin-top: 10px;
         }
         .company-details p {
             margin: 1px 0;

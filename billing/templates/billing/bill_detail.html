@@ -8,12 +8,12 @@
             margin: 0;
             padding: 0;
             color: #333;
-            font-size: 10px; /* Slightly smaller base font for more content */
+            font-size: 10px;
             line-height: 1.4;
         }
         .container {
             width: 100%;
-            max-width: 780px; /* Adjusted for better fit on A4 */
+            max-width: 780px;
             margin: 20px auto;
             border: 1px solid #ddd;
             padding: 25px;
@@ -47,21 +47,24 @@
             font-size: 10px;
             color: #666;
         }
-        .company-details {
-            text-align: left;
-            font-size: 10px;
-            color: #555;
-            margin-top: 10px;
-        }
         .logo-details {
             display: flex;
-            align-items: center;  
-            gap: 10px;   
+            align-items: center;
+            gap: 15px;
+            flex-wrap: nowrap; /* 🚫 no wrapping */
         }
+
         .logo-details img.logo {
-            max-width: 100px;
+            width: 80px;  /* fixed width */
             height: auto;
+            flex-shrink: 0; /* logo never shrinks */
             margin-right: 10px;
+        }
+
+        .company-details {
+            flex: 1;        /* take all remaining space */
+            min-width: 0;   /* prevent overflow */
+            text-align: left;
         }
         .company-details p {
             margin: 1px 0;
@@ -93,12 +96,12 @@
         .info-block strong {
             color: #444;
             display: inline-block;
-            width: 100px; /* Adjusted width to prevent text wrapping */
+            width: 100px;
         }
         .section-title {
             font-size: 13px;
             color: #03a739ff;
-            border-bottom: 1px solid #cfffe1ff; /* Lighter blue border */
+            border-bottom: 1px solid #cfffe1ff;
             padding-bottom: 5px;
             margin-bottom: 12px;
             font-weight: bold;
@@ -110,25 +113,25 @@
             background-color: #fff;
         }
         th, td {
-            border: 1px solid #e0e0e0; /* Lighter border */
+            border: 1px solid #e0e0e0;
             padding: 10px 8px;
             text-align: left;
             font-size: 10px;
         }
         th {
-            background-color: #d2fde4ff; 
+            background-color: #d2fde4ff;
             font-weight: bold;
             color: #333;
             text-transform: uppercase;
         }
         tr:nth-child(even) {
-            background-color: #fdfdfd; /* Subtle alternating row color */
+            background-color: #fdfdfd;
         }
         .text-right {
             text-align: right;
         }
         .total-summary {
-            width: 40%; /* Make total summary narrower */
+            width: 40%;
             float: right;
             margin-top: 15px;
             border: 1px solid #03a739ff;
@@ -169,7 +172,6 @@
         .status-closed { color: #28a745; font-weight: bold; }
         .status-cancelled { color: #dc3545; font-weight: bold; }
 
-        /* Responsive adjustments */
         @media screen and (max-width: 600px) {
             .container {
                 margin: 10px;
@@ -225,7 +227,7 @@
         <div class="header">
             <div class="logo-details">
                 <img src="/static/images/logo.png" alt="Company Logo" class="logo">
-                <div class = "company-details">
+                <div class="company-details">
                     <p><strong>MSI Sale Depot</strong></p>
                     <p>Opp Bilqees Sarwar, Near Parventhy, Khana</p>
                     <p>Phone: 03210911126</p>
@@ -328,13 +330,7 @@
             </table>
         </div>
 
-        <div style="clear: both;"></div> <!-- Clear floats -->
-
-        <!-- <div class="notes-section">
-            <p><strong>Notes:</strong></p>
-            <p>Thank you for your business! We appreciate your prompt payment.</p>
-            <p>This is a computer generated invoice and does not require a signature.</p>
-        </div> -->
+        <div style="clear: both;"></div>
 
         <div class="footer">
             <p>&copy; {{ "now"|date:"Y" }} Your Company Name. All rights reserved.</p>
