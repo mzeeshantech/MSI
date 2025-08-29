@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html>
 <head>
@@ -226,11 +227,8 @@
     <div class="container">
         <div class="header">
             <div class="logo-details">
-                <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; text-align: center;">
-                    <h1>مضبوط سریا محفوظ تعمیر</h1>
-                    <h1>گریڈ 40 اور گریڈ 60 سریا</h1>
-                </div>
-                <div class="company-details">
+                <img src="{% static 'images/logo.png' %}" alt="Company Logo" class="logo">
+                <div class="company-details" style="width: 240px;">
                     <p><strong>Sale Depot</strong></p>
                     <p>Opp Bilqees Sarwar, Near Parventhy, Khana</p>
                     <p>Phone: 03210911126</p>

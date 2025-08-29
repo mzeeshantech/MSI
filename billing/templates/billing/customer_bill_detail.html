@@ -32,6 +32,7 @@
         .header .logo {
             max-width: 120px;
             height: auto;
+            margin-right: 15px; /* Add some space between logo and company details */
         }
         .header-info {
             text-align: right;
@@ -52,19 +53,18 @@
             display: flex;
             align-items: center;
             gap: 15px;
-            flex-wrap: nowrap; /* 🚫 no wrapping */
+            flex-wrap: nowrap;
         }
 
-        .logo-details img.logo {
-            width: 80px;  /* fixed width */
+        .logo-details .logo { /* Changed from img.logo to .logo */
+            width: 80px;
             height: auto;
-            flex-shrink: 0; /* logo never shrinks */
-            margin-right: 10px;
+            flex-shrink: 0;
         }
 
         .company-details {
-            flex: 1;        /* take all remaining space */
-            min-width: 0;   /* prevent overflow */
+            flex: 1;
+            min-width: 0;
             text-align: left;
         }
         .company-details p {
@@ -228,11 +228,8 @@
     <div class="container">
         <div class="header">
             <div class="logo-details">
-                <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; text-align: center;">
-                    <h1>مضبوط سریا محفوظ تعمیر</h1>
-                    <h1>گریڈ 40 اور گریڈ 60 سریا</h1>
-                </div>
-                <div class = "company-details">
+                <img src="{% static 'images/logo.png' %}" alt="Company Logo" class="logo">
+                <div class="company-details" style="width: 340px;">
                     <p><strong>Sale Depot</strong></p>
                     <p>Opp Bilqees Sarwar, Near Parventhy, Khana</p>
                     <p>Phone: 03210911126</p>
@@ -245,7 +242,7 @@
         </div>
 
         <div class="bill-details-section">
-            <div class="customer-info info-block">
+            <div class="customer-info info-block" style="width: 100%;">
                 <div class="section-title">Bill To:</div>
                 <p><strong>Name:</strong> {{ bill.customer.name }}</p>
                 <p><strong>Phone:</strong> {{ bill.customer.phone|default:"N/A" }}</p>
