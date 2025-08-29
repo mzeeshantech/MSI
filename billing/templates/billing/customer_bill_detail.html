@@ -45,7 +45,7 @@
         }
         .header-info p {
             margin: 2px 0;
-            font-size: 10px;
+            font-size: 12px;
             color: #666;
         }
         .logo-details {
@@ -228,17 +228,18 @@
     <div class="container">
         <div class="header">
             <div class="logo-details">
-                <img src="/static/images/logo.png" alt="Company Logo" class="logo">
+                <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; text-align: center;">
+                    <h1>مضبوط سریا محفوظ تعمیر</h1>
+                    <h1>گریڈ 40 اور گریڈ 60 سریا</h1>
+                </div>
                 <div class = "company-details">
-                    <p><strong>MSI Sale Depot</strong></p>
+                    <p><strong>Sale Depot</strong></p>
                     <p>Opp Bilqees Sarwar, Near Parventhy, Khana</p>
                     <p>Phone: 03210911126</p>
                     <p>Email: msisaledepot@gmail.com</p>
                 </div>
             </div>
             <div class="header-info">
-                <h1>INVOICE</h1>
-                <p><strong>Bill No:</strong> {{ bill.bill_number }}</p>
                 <p><strong>Date:</strong> {{ bill.created_at|date:"d M, Y" }}</p>
             </div>
         </div>
@@ -308,15 +309,11 @@
         </div> -->
 
         <div class="footer">
-            <p>&copy; {{ "now"|date:"Y" }} Your Company Name. All rights reserved.</p>
-            <p>For any inquiries, please contact us at info@yourcompany.com</p>
-            <div style="text-align: left; display: inline-block;">
-                <p>
-                     کسی بھی واپسی کو پورا کرنے کا ذمہ دار نہیں ہے۔ MSI<strong> -4</strong> 
-                     فروخت کے 3 دن کے اندر واپسی ممکن ہے۔ <strong> -3</strong> 
-                     اسٹیل زنگ اور دھول سے پاک ہونا چاہیے۔ <strong> -2</strong>  
-                     صرف اسٹیل کی واپسی ممکن ہے۔<strong> -1</strong>
-                </p>
+            <div style="text-align: right;  font-size: 13px">
+                <p>صرف اسٹیل کی واپسی ممکن ہے۔<strong> -1</strong></p>
+                <p>اسٹیل زنگ اور دھول سے پاک ہونا چاہیے۔ <strong> -2</strong></p> 
+                <p> فروخت کے 3 دن کے اندر واپسی ممکن ہے۔ <strong> -3</strong> </p>
+                <p>ادارہ کسی بھی واپسی کو پورا کرنے کا ذمہ دار نہیں ہے <strong>-4</strong></p>
             </div>
         </div>
     </div>

@@ -1,0 +1,24 @@
+{% load humanize %}
+{% for expense in expenses %}
+<tr>
+    <td>{{ expense.description }}</td>
+    <td>{{ expense.amount|floatformat:0 }}</td>
+    <td>
+        {% if expense.receipt %}
+            <a href="{{ expense.receipt.url }}" target="_blank">View Receipt</a>
+        {% else %}
+            No Receipt
+        {% endif %}
+    </td>
+    <td>{{ expense.created_at|date:"Y-m-d" }}</td>
+    <td>{{ expense.approved_by }}</td>
+    <td class="action-buttons">
+        <button type="button" class="btn btn-primary action-btn btn-edit-expense" data-id="{{ expense.id }}" data-bs-toggle="modal" data-bs-target="#addItemModal" title="Edit">
+            <i class="fas fa-edit font-10"></i>
+        </button>
+        <button type="button" class="btn btn-danger action-btn delete-expense-btn" data-id="{{ expense.id }}" title="Delete">
+            <i class="fas fa-trash-alt font-10"></i>
+        </button>
+    </td>
+</tr>
+{% endfor %}

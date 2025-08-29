@@ -141,6 +141,7 @@
                 <a href="{% url 'billing_home' %}" class="sub-link {% if selected_page == 'billing' %}active{% endif %}">• Current Billing</a>
                 <a href="{% url 'advance_booking' %}" class="sub-link {% if selected_page == 'advance_booking' %}active{% endif %}">• Advance Booking</a>
                 <a href="{% url 'paid_later' %}" class="sub-link {% if selected_page == 'paid_later' %}active{% endif %}">• Pending Payment</a>
+                <a href="{% url 'return_item' %}" class="sub-link {% if selected_page == 'return_item' %}active{% endif %}">• Return Items</a>
             </div>
             <button class="nav-link" onclick="toggleSubmenu('employeesSubmenu')">
                 <i class="fas fa-users"></i> Employees <i class="fas fa-caret-down ms-auto"></i>
@@ -149,6 +150,7 @@
                 <a href="{% url 'employees_home' %}" class="sub-link {% if selected_page == 'employees' %}active{% endif %}">• Employee</a>
                 <a href="{% url 'employee_advances' %}" class="sub-link {% if selected_page == 'employee_advances' %}active{% endif %}">• Advance Salary</a>
             </div>
+            <a href="{% url 'expenses_home' %}" {% if selected_page == "expenses" %} class="active" {% endif %}><i class="fas fa-money-bill-wave"></i> Expenses</a>
             <a href="{% url 'reports_home' %}" {% if selected_page == "reports" %} class="active" {% endif %}><i class="fas fa-chart-line"></i> Reports</a>
             <a href="{% url 'wallet_home' %}" {% if selected_page == "wallet" %} class="active" {% endif %}><i class="fas fa-wallet"></i> Wallet</a>
         </div>
@@ -174,7 +176,7 @@
                 stockSubmenu.style.display = 'block';
             }
 
-            if (selectedPage === 'billing' || selectedPage === 'advance_booking' || selectedPage === 'paid_later') {
+            if (selectedPage === 'billing' || selectedPage === 'advance_booking' || selectedPage === 'paid_later' || selectedPage === 'return_item') {
                 billingSubmenu.style.display = 'block';
             }
 

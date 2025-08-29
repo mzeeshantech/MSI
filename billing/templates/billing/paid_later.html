@@ -5,8 +5,8 @@
 {% block title %}Inventory Items{% endblock %}
 
 {% block extra_head %}
-    <script src="{% static 'js/jquery-3.6.0.min.js' %}"></script>
     <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
 
     <style>
         .header {
@@ -265,6 +265,9 @@
         <div class="header">
 <h1 class="font-20"><i class="fas fa-file-invoice font-13"></i> PAY LATER BILLS</h1>
             <div class="d-flex align-items-center">
+                <div class="d-flex align-items-center me-2">
+                    <input type="text" class="form-control form-control-sm me-1" id="dateRangePicker" name="date_range" title="Date Range Filter" placeholder="Select Date Range">
+                </div>
                 <input type="text" class="search-bar font-13" id="globalSearch" name="global_search" placeholder="Search by Customer Name or Bill No.">
 <button type="button" class="btn btn-add ms-2 font-14" data-bs-toggle="modal" data-bs-target="#generateBillModal">
     <i class="fas fa-file-invoice font-10"></i> Generate Bill
@@ -523,7 +526,10 @@
 {% endblock %}
 
 {% block extra_scripts %}
+    <script src="{% static 'js/jquery-3.6.0.min.js' %}"></script>
     <script src="{% static 'js/bootstrap.bundle.min.js' %}" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
     <script>
         function getCookie(name) {
             let cookieValue = null;
@@ -1086,6 +1092,14 @@
             });
         });
 
+        function toggleBulkDeleteButton() {
+            if ($('.bill-checkbox:checked').length > 0) {
+                $('#bulkDeleteBtn').show();
+            } else {
+                $('#bulkDeleteBtn').hide();
+            }
+        }
+
         function renderBills(response) {
             const bills = response.bills;
             let tableBody = $('#billTableBody');
@@ -1129,9 +1143,21 @@
             }
         }
 
-        function fetchBillsData(url) {
+        function fetchBillsData(url, startDate = '', endDate = '') {
+            const currentUrl = new URL(url);
+            if (startDate) {
+                currentUrl.searchParams.set('start_date', startDate);
+            } else {
+                currentUrl.searchParams.delete('start_date');
+            }
+            if (endDate) {
+                currentUrl.searchParams.set('end_date', endDate);
+            } else {
+                currentUrl.searchParams.delete('end_date');
+            }
+
             $.ajax({
-                url: url,
+                url: currentUrl.toString(),
                 method: 'GET',
                 success: function(response) {
                     renderBills(response);
@@ -1145,22 +1171,25 @@
         $(document).ready(function() {
             // AJAX search for bills based on customer name and bill number
             $('#globalSearch').on('keyup change', function() {
-                const searchTerm = $(this).val();
-                
-                const baseUrl = "{% url 'paid_later' %}";
-                const url = new URL(baseUrl, window.location.origin);
-                if (searchTerm) {
-                    url.searchParams.append('search_term', searchTerm);
-                }
-
-                fetchBillsData(url);
+                applyDateFilter(); // Trigger date filter on search term change
             });
 
             // Handle pagination via AJAX for bills table
             $(document).on('click', '#search-results .pagination a', function(e) {
                 e.preventDefault();
                 const url = $(this).attr('href');
-                fetchBillsData(url);
+                const dateRange = $('#dateRangePicker').val();
+                let startDate = '';
+                let endDate = '';
+
+                if (dateRange) {
+                    const dates = dateRange.split(' - ');
+                    if (dates.length === 2) {
+                        startDate = moment(dates[0], 'DD/MM/YYYY').format('YYYY-MM-DD');
+                        endDate = moment(dates[1], 'DD/MM/YYYY').format('YYYY-MM-DD');
+                    }
+                }
+                fetchBillsData(url, startDate, endDate);
             });
 
             // View Bill PDF functionality
@@ -1203,6 +1232,55 @@
             $('#downloadExcelBtn').on('click', function() {
                 window.location.href = "{% url 'export_bills_excel' %}";
             });
+
+            // Initialize Date Range Picker
+            $('#dateRangePicker').daterangepicker({
+                autoUpdateInput: false,
+                locale: {
+                    cancelLabel: 'Clear'
+                }
+            });
+
+            $('#dateRangePicker').on('apply.daterangepicker', function(ev, picker) {
+                $(this).val(picker.startDate.format('DD/MM/YYYY') + ' - ' + picker.endDate.format('DD/MM/YYYY'));
+                applyDateFilter();
+            });
+
+            $('#dateRangePicker').on('cancel.daterangepicker', function(ev, picker) {
+                $(this).val('');
+                applyDateFilter();
+            });
+
+            function applyDateFilter() {
+                const dateRange = $('#dateRangePicker').val();
+                let startDate = '';
+                let endDate = '';
+
+                if (dateRange) {
+                    const dates = dateRange.split(' - ');
+                    if (dates.length === 2) {
+                        startDate = moment(dates[0], 'DD/MM/YYYY').format('YYYY-MM-DD');
+                        endDate = moment(dates[1], 'DD/MM/YYYY').format('YYYY-MM-DD');
+                    }
+                }
+                
+                const searchTerm = $('#globalSearch').val();
+
+                const baseUrl = "{% url 'paid_later' %}";
+                const url = new URL(baseUrl, window.location.origin);
+
+                if (searchTerm) {
+                    url.searchParams.append('search_term', searchTerm);
+                }
+                if (startDate) {
+                    url.searchParams.append('start_date', startDate);
+                }
+                if (endDate) {
+                    url.searchParams.append('end_date', endDate);
+                }
+
+                fetchBillsData(url.toString(), startDate, endDate);
+            }
         });
     </script>
 {% endblock %}

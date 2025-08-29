@@ -250,7 +250,6 @@
                         <th><strong><i class="fas fa-dollar-sign black-color font-10"></i> Amount</strong></th>
                         <th><strong><i class="fas fa-calendar-alt black-color font-10"></i> Date</strong></th>
                         <th><strong><i class="fas fa-calendar black-color font-10"></i> Month</strong></th>
-                        <th><strong><i class="fas fa-check-circle black-color font-10"></i> Paid Back</strong></th>
                         <th><strong><i class="fas fa-edit black-color font-10"></i> Action</strong></th>
                     </tr>
                 </thead>
@@ -261,13 +260,6 @@
                         <td>{{ adv.amount|floatformat:0 }}</td>
                         <td>{{ adv.date_given }}</td>
                         <td>{{ adv.month }}</td>
-                        <td>
-                            {% if adv.paid_back %}
-                                <span class="status-paid">Paid</span>
-                            {% else %}
-                                <span class="status-unpaid">Unpaid</span>
-                            {% endif %}
-                        </td>
                         <td class="action-buttons">
                             <a href="#" class="btn btn-sm btn-primary action-btn edit-advance" data-id="{{ adv.id }}" title="Edit">
                                 <i class="fas fa-edit font-10"></i>
@@ -336,15 +328,10 @@
                         </select>
                         <div class="invalid-feedback">Please select a month.</div>
                     </div>
-                    <div class="mb-3 form-check" id="paidBackCheckboxContainer" style="display: none;">
-                        <input type="checkbox" class="form-check-input" id="paidBack" name="paid_back">
-                        <label class="form-check-label" for="paidBack">Paid Back</label>
-                    </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-success" id="markAsPaidBackBtn" style="display: none;">Mark as Paid Back</button>
                 <button type="submit" form="advanceSalaryForm" class="btn btn-primary">Save Advance</button>
             </div>
         </div>
@@ -380,10 +367,7 @@
             document.getElementById("salaryAmount").value = "";
             document.getElementById("dateGiven").value = "";
             document.getElementById("monthSelect").value = "";
-            document.getElementById("paidBack").checked = false;
             document.getElementById("advanceSalaryModalLabel").innerHTML = 'Grant Advance Salary';
-            document.getElementById("markAsPaidBackBtn").style.display = 'none';
-            document.getElementById("paidBackCheckboxContainer").style.display = 'none'; // Hide for new advance
             form.classList.remove('was-validated');
 
             let today = new Date();
@@ -417,7 +401,6 @@
                     amount: $('#salaryAmount').val(),
                     date: $('#dateGiven').val(),
                     month: $('#monthSelect').val(),
-                    paid_back: $('#paidBack').is(':checked'),
                     csrfmiddlewaretoken: '{{ csrf_token }}'
                 };
 
@@ -462,55 +445,12 @@
                     document.getElementById("salaryAmount").value = data.advance.amount;
                     document.getElementById("dateGiven").value = data.advance.date_given;
                     document.getElementById("monthSelect").value = data.advance.month;
-                    document.getElementById("paidBack").checked = data.advance.paid_back;
                     document.getElementById("advanceSalaryModalLabel").innerHTML = `Edit Advance`;
-                    document.getElementById("paidBackCheckboxContainer").style.display = 'block'; // Show for edit
-
-                    if (data.advance.paid_back) {
-                        document.getElementById("markAsPaidBackBtn").style.display = 'none';
-                    } else {
-                        document.getElementById("markAsPaidBackBtn").style.display = 'inline-block';
-                        document.getElementById("markAsPaidBackBtn").dataset.id = data.advance.id;
-                    }
 
                     const modal = new bootstrap.Modal(document.getElementById('advanceSalaryModal'));
                     modal.show();
                 })
                 .catch(err => console.error(err));
-            });
-
-            $('#markAsPaidBackBtn').on('click', function() {
-                const advanceId = $(this).data('id');
-                var formData = {
-                    employee: $('#employeeSelect').val(), // Keep existing values
-                    amount: $('#salaryAmount').val(),
-                    date: $('#dateGiven').val(),
-                    month: $('#monthSelect').val(),
-                    paid_back: true, // Set paid_back to true
-                    csrfmiddlewaretoken: '{{ csrf_token }}'
-                };
-
-                $.ajax({
-                    url: `/employees/advance/${advanceId}/`, // Use existing edit endpoint
-                    type: "PUT", // Use PUT for update
-                    data: JSON.stringify(formData),
-                    contentType: "application/json",
-                    headers: {
-                        'X-CSRFToken': csrftoken
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            $('#advanceSalaryModal').modal('hide');
-                            location.reload();
-                        } else {
-                            alert("Error: " + response.message);
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        var errorMessage = xhr.responseJSON ? xhr.responseJSON.message : "An unexpected error occurred.";
-                        alert("AJAX Error: " + errorMessage);
-                    }
-                });
             });
 
             $('#advanceTableBody').on('click', '.delete-advance-btn', function (e) {

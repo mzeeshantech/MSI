@@ -16,4 +16,9 @@ urlpatterns = [
     path('generate_bill_pdf/<int:bill_id>/', views.generate_bill_pdf, name='generate_bill_pdf'),
     path('advance_booking/', views.advance_booking_view, name='advance_booking'),
     path('paid_later/', views.paid_later, name='paid_later'),
+    path('return_item/', views.return_item_view, name='return_item'),
+    path('get_bill_details_by_number/<str:bill_number>/', views.get_bill_details_by_number, name='get_bill_details_by_number'),
+    path('get_bill_items/<int:bill_id>/', views.get_bill_items, name='get_bill_items'),
+    path('bulk_delete_returns/', views.bulk_delete_returns, name='bulk_delete_returns'),
+    path('return_api/<int:return_id>/', views.return_detail_api, name='return_detail_api'),
 ]

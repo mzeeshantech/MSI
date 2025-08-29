@@ -1,0 +1,840 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Return Items{% endblock %}
+
+{% block extra_head %}
+    <script src="{% static 'js/jquery-3.6.0.min.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+    <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+
+    <style>
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #333;
+            display: flex;
+            align-items: center;
+        }
+
+        .header h1 i { margin-right: 8px; }
+
+        .search-bar {
+            width: 200px;
+            margin-right: 10px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid #ced4da;
+        }
+
+        .btn-custom {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-custom:hover { background-color: #0056b3; }
+
+        table {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            vertical-align: middle;
+            font-size: 14px;
+            color: #444;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        th i {
+            margin-right: 5px;
+            color: #007bff;
+        }
+
+        .pagination {
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .black-color { color: black !important; }
+
+        .modal-dialog {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100% - 3.5rem); 
+        }
+
+        .modal-content {
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+        }
+
+        .modal-header, .modal-footer {
+            background-color: #f8f9fa;
+            border-bottom: none;
+            border-top: none;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-body .row, .modal-body .mb-3 {
+            margin-bottom: 15px;
+        }
+
+        .form-label i { margin-right: 5px; }
+
+        .form-label.text-primary { color: #007bff; }
+        .form-label.text-success { color: #28a745; }
+        .form-label.text-warning { color: #ffc107; }
+        .form-label.text-info { color: #17a2b8; }
+        .form-label.text-secondary, .form-label.text-muted { color: #6c757d; }
+
+        .form-control[readonly] {
+            background-color: #e9ecef;
+            opacity: 1;
+        }
+
+        .btn-success {
+            background-color: #28a745;
+            border-color: #28a745;
+            padding: 8px 20px;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-success:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            border-color: #dc3545;
+            padding: 8px 20px;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-danger:hover {
+            background-color: #c82333;
+            border-color: #bd2130;
+        }
+
+        .btn i { margin-right: 5px; }
+
+        .was-validated .form-control:invalid {
+            border-color: #dc3545;
+            background-image: none;
+        }
+
+        .was-validated .form-control:invalid:focus {
+            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+        }
+
+        .invalid-feedback {
+            display: none;
+            width: 100%;
+            margin-top: 0.25rem;
+            font-size: 0.875em;
+            color: #dc3545;
+        }
+
+        .was-validated .form-control:invalid ~ .invalid-feedback {
+            display: block;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px; /* Changed from 50% to make them rectangular */
+            padding: 8px 12px; /* Added padding to make them look like buttons */
+            border: none;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .action-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-edit {
+            background-color: #0d6efd;
+            color: white;
+        }
+        .btn-edit:hover {
+            background-color: #0b5ed7;
+        }
+
+        .btn-delete {
+            background-color: #dc3545;
+            color: white;
+        }
+        .btn-delete:hover {
+            background-color: #bb2d3b;
+        }
+
+        .modal-xl {
+            max-width: 98% !important; /* Make it even wider */
+        }
+
+        @media (max-width: 768px) {
+            .modal-dialog { margin: 0.5rem; }
+            .modal-body .mb-3 { margin-bottom: 10px; }
+        }
+
+        /* New styles for modal sections */
+        .modal-section {
+            background-color: #82b3fc1a; /* A very light grey/blue for subtle background */
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px; /* Add some space between sections */
+        }
+
+        .modal-section .form-label,
+        .modal-section .form-control,
+        .modal-section .form-select,
+        .modal-section textarea.form-control {
+            font-size: 0.85rem; /* Slightly smaller font size */
+        }
+
+        /* Adjust table font size within modal */
+        .modal-body table th,
+        .modal-body table td {
+            font-size: 0.8rem; /* Even smaller for table content */
+        }
+        .font-10 {
+            font-size: 10px;
+        }
+        .font-15 {
+            font-size: 15px;
+        }
+        .font-13 {
+            font-size: 13px;
+        }
+        .font-14 {
+            font-size: 14px;
+        }
+        .font-20 {
+            font-size: 20px !important;
+        }
+
+        /* Styles for Bill Status */
+        .status-open {
+            color: #007bff; /* Blue for open */
+            font-weight: bold;
+        }
+        .status-closed {
+            color: #28a745; /* Green for closed */
+            font-weight: bold;
+        }
+        .status-cancelled {
+            color: #dc3545; /* Red for cancelled */
+            font-weight: bold;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <script type="application/json" id="bills_data">{{ bills_json|safe }}</script>
+    <div class="header">
+        <h1 class="font-20"><i class="fas fa-undo font-13"></i> RETURN ITEMS</h1>
+        <div class="d-flex align-items-center">
+            <div class="d-flex align-items-center me-2">
+                <input type="text" class="form-control form-control-sm me-1" id="dateRangePicker" name="date_range" title="Date Range Filter" placeholder="Select Date Range">
+            </div>
+            <input type="text" class="search-bar font-13" id="globalSearch" name="global_search" placeholder="Search by Customer Name or Bill No.">
+            <button type="button" class="btn btn-add ms-2 font-14" id="addReturnBtn">
+                <i class="fas fa-plus font-10"></i> Add Return
+            </button>
+            <button type="button" class="btn btn-danger ms-2 font-14" id="bulkDeleteBtn" style="display: none;">
+                <i class="fas fa-trash-alt font-10"></i> Bulk Delete
+            </button>
+        </div>
+    </div>
+
+    <div id="search-results">
+        {% if returns %}
+            <table class="table table-striped table-hover" id="returns_table">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAllReturns"></th>
+                        <th><strong><i class="fas fa-file-invoice black-color font-10"></i> Bill No.</strong></th>
+                        <th><strong><i class="fas fa-user black-color font-10"></i> Customer Name</strong></th>
+                        <th><strong><i class="fas fa-tag black-color font-10"></i> Item Name</strong></th>
+                        <th><strong><i class="fas fa-balance-scale black-color font-10"></i> Quantity Returned</strong></th>
+                        <th><strong><i class="fas fa-question-circle black-color font-10"></i> Reason</strong></th>
+                        <th><strong><i class="fas fa-calendar-alt black-color font-10"></i> Return Date</strong></th>
+                        <th><strong><i class="fas fa-cogs black-color font-10"></i> Action</strong></th>
+                    </tr>
+                </thead>
+                <tbody id="returnTableBody">
+                    {% for return_item in returns %}
+                        <tr>
+                            <td><input type="checkbox" class="return-checkbox" data-id="{{ return_item.id }}"></td>
+                            <td>{{ return_item.bill_number }}</td>
+                            <td>{{ return_item.customer_name }}</td>
+                            <td>{{ return_item.item_name }}</td>
+                            <td>{{ return_item.quantity_returned|floatformat:"2"|intcomma }}</td>
+                            <td>{{ return_item.reason }}</td>
+                            <td>{{ return_item.return_date|date:"d M, Y" }}</td>
+                            <td class="action-buttons">
+                                <button type="button" class="btn btn-primary action-btn edit-return-btn" data-id="{{ return_item.id }}" title="Edit">
+                                    <i class="fas fa-edit font-10"></i>
+                                </button>
+                                <button type="button" class="btn btn-danger action-btn delete-return-btn" data-id="{{ return_item.id }}" title="Delete">
+                                    <i class="fas fa-trash-alt font-10"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-center">No returns found.</p>
+        {% endif %}
+    </div>
+    <div id="pagination-container">
+        {% include 'stock/pagination.html' with page_obj=page_obj %}
+    </div>
+</div>
+
+<!-- View Return Details Modal -->
+<div class="modal fade" id="viewReturnDetailsModal" tabindex="-1" aria-labelledby="viewReturnDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title" id="viewReturnDetailsModalLabel"><i class="fas fa-info-circle"></i> Return Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p><strong>Bill Number:</strong> <span id="viewReturnBillNumber"></span></p>
+                        <p><strong>Item Name:</strong> <span id="viewReturnItemName"></span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Quantity Returned:</strong> <span id="viewReturnQuantity"></span></p>
+                        <p><strong>Return Date:</strong> <span id="viewReturnDate"></span></p>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <p><strong>Reason:</strong> <span id="viewReturnReason"></span></p>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Return Modal -->
+<div class="modal fade" id="returnModal" tabindex="-1" aria-labelledby="returnModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="returnModalLabel"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="returnForm">
+                    <input type="hidden" id="returnId">
+                    <div class="mb-3">
+                        <label for="modalBillNumber" class="form-label">Bill Number</label>
+                        <select class="form-control" id="modalBillNumber" required>
+                            <option value="">Select a Bill Number</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modalBillItem" class="form-label">Bill Item</label>
+                        <select class="form-control" id="modalBillItem" required disabled>
+                            <option value="">Select a Bill Item</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modalQuantityReturned" class="form-label">Quantity Returned</label>
+                        <input type="number" class="form-control" id="modalQuantityReturned" min="1" step="1" required disabled>
+                        <small class="form-text text-muted" id="maxQuantityInfo"></small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modalReason" class="form-label">Reason</label>
+                        <textarea class="form-control" id="modalReason" rows="3" required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="submitReturnBtn"></button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+    <script src="{% static 'js/bootstrap.bundle.min.js' %}" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // New Global Search and Date Range Picker
+            const globalSearchInput = document.getElementById('globalSearch');
+            const dateRangePicker = $('#dateRangePicker');
+            const returnTableBody = document.getElementById('returnTableBody');
+            const selectAllReturnsCheckbox = document.getElementById('selectAllReturns');
+            const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+
+            // Helper function to fetch returns data
+            function fetchReturnsData(url) {
+                $.ajax({
+                    url: url,
+                    method: 'GET',
+                    success: function(response) {
+                        renderReturns(response);
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('AJAX Error: ', status, error);
+                    }
+                });
+            }
+
+            // Render Returns Table
+            function renderReturns(response) {
+                const returns = response.returns;
+                let tableBody = $('#returnTableBody');
+                tableBody.empty();
+
+                if (returns.length > 0) {
+                    returns.forEach(return_item => {
+                        tableBody.append(`
+                            <tr>
+                                <td><input type="checkbox" class="return-checkbox" data-id="${return_item.id}"></td>
+                                <td>${return_item.bill_number}</td>
+                                <td>${return_item.customer_name}</td>
+                                <td>${return_item.item_name}</td>
+                                <td>${parseFloat(return_item.quantity_returned).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                <td>${return_item.reason}</td>
+                                <td>${new Date(return_item.return_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                                <td class="action-buttons">
+                                    <button type="button" class="btn btn-primary action-btn edit-return-btn" data-id="${return_item.id}" title="Edit">
+                                        <i class="fas fa-edit font-10"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-danger action-btn delete-return-btn" data-id="${return_item.id}" title="Delete">
+                                        <i class="fas fa-trash-alt font-10"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `);
+                    });
+                    $('#pagination-container').html(response.pagination_html);
+                    toggleBulkDeleteButton();
+                } else {
+                    tableBody.append('<tr><td colspan="8" class="text-center">No returns found.</td></tr>');
+                    $('#pagination-container').empty();
+                    toggleBulkDeleteButton();
+                }
+            }
+
+            // Initial load of returns
+            fetchReturnsData("{% url 'return_item' %}");
+
+            // Global Search functionality
+            globalSearchInput.addEventListener('keyup', function() {
+                applyFilters();
+            });
+            globalSearchInput.addEventListener('change', function() {
+                applyFilters();
+            });
+
+            // Date Range Picker functionality
+            dateRangePicker.daterangepicker({
+                autoUpdateInput: false,
+                locale: {
+                    cancelLabel: 'Clear'
+                }
+            });
+
+            dateRangePicker.on('apply.daterangepicker', function(ev, picker) {
+                $(this).val(picker.startDate.format('DD/MM/YYYY') + ' - ' + picker.endDate.format('DD/MM/YYYY'));
+                applyFilters();
+            });
+
+            dateRangePicker.on('cancel.daterangepicker', function(ev, picker) {
+                $(this).val('');
+                applyFilters();
+            });
+
+            function applyFilters() {
+                const searchTerm = globalSearchInput.value.trim();
+                const dateRange = dateRangePicker.val();
+                let startDate = '';
+                let endDate = '';
+
+                if (dateRange) {
+                    const dates = dateRange.split(' - ');
+                    if (dates.length === 2) {
+                        startDate = moment(dates[0], 'DD/MM/YYYY').format('YYYY-MM-DD');
+                        endDate = moment(dates[1], 'DD/MM/YYYY').format('YYYY-MM-DD');
+                    }
+                }
+
+                const baseUrl = "{% url 'return_item' %}";
+                const url = new URL(baseUrl, window.location.origin);
+                if (searchTerm) {
+                    url.searchParams.append('search_term', searchTerm);
+                }
+                if (startDate) {
+                    url.searchParams.append('start_date', startDate);
+                }
+                if (endDate) {
+                    url.searchParams.append('end_date', endDate);
+                }
+                console.log('fetch data')
+                fetchReturnsData(url);
+            }
+
+            // Pagination for returns table
+            $(document).on('click', '#pagination-container a', function(e) {
+                e.preventDefault();
+                const url = $(this).attr('href');
+                fetchReturnsData(url);
+            });
+
+            // Bulk Delete functionality
+            selectAllReturnsCheckbox.addEventListener('change', function() {
+                $('.return-checkbox').prop('checked', this.checked);
+                toggleBulkDeleteButton();
+            });
+
+            $(document).on('change', '.return-checkbox', function() {
+                toggleBulkDeleteButton();
+                if (!this.checked) {
+                    selectAllReturnsCheckbox.checked = false;
+                } else if ($('.return-checkbox:checked').length === $('.return-checkbox').length) {
+                    selectAllReturnsCheckbox.checked = true;
+                }
+            });
+
+            bulkDeleteBtn.addEventListener('click', function() {
+                const selectedReturnIds = [];
+                $('.return-checkbox:checked').each(function() {
+                    selectedReturnIds.push($(this).data('id'));
+                });
+
+                if (selectedReturnIds.length === 0) {
+                    alert('Please select at least one return to delete.');
+                    return;
+                }
+
+                if (confirm(`Are you sure you want to delete ${selectedReturnIds.length} selected return(s)?`)) {
+                    fetch("{% url 'bulk_delete_returns' %}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrftoken
+                        },
+                        body: JSON.stringify({ return_ids: selectedReturnIds })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            applyFilters(); // Refresh table
+                        } else {
+                            alert("Error: " + data.error);
+                        }
+                    })
+                    .catch(err => console.error(err));
+                }
+            });
+
+            function toggleBulkDeleteButton() {
+                if ($('.return-checkbox:checked').length > 0) {
+                    bulkDeleteBtn.style.display = 'block';
+                } else {
+                    bulkDeleteBtn.style.display = 'none';
+                }
+            }
+
+            // Delete individual return
+            $(document).on('click', '.delete-return-btn', function (e) {
+                const returnId = $(this).data('id');
+
+                if (confirm("Are you sure you want to delete this return?")) {
+                    fetch(`/billing/return_api/${returnId}/`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRFToken': csrftoken
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            applyFilters(); // Refresh table
+                        } else {
+                            alert("Error: " + data.error);
+                        }
+                    })
+                    .catch(err => console.error(err));
+                }
+            });
+            
+            const selectedPage = "{{ selected_page }}";
+            if (selectedPage === 'return_item') {
+                const billingSubmenu = document.getElementById('billingSubmenu');
+                if (billingSubmenu) {
+                    billingSubmenu.style.display = 'block';
+                }
+            }
+
+            // Modal elements
+            const returnModalElement = document.getElementById('returnModal');
+            const returnModal = new bootstrap.Modal(returnModalElement);
+            const returnModalLabel = document.getElementById('returnModalLabel');
+            const returnForm = document.getElementById('returnForm');
+            const returnIdInput = document.getElementById('returnId');
+            const modalBillNumberSelect = document.getElementById('modalBillNumber');
+            const modalBillItemSelect = document.getElementById('modalBillItem');
+            const modalQuantityReturnedInput = document.getElementById('modalQuantityReturned');
+            const maxQuantityInfo = document.getElementById('maxQuantityInfo');
+            const modalReasonTextarea = document.getElementById('modalReason');
+            const submitReturnBtn = document.getElementById('submitReturnBtn');
+            const addReturnBtn = document.getElementById('addReturnBtn');
+
+            let selectedBillId = null; // To store the ID of the selected bill
+
+            // Populate bills from Django context
+            const billsDataElement = document.getElementById('bills_data');
+            const bills = JSON.parse(billsDataElement.textContent);
+            console.log('Bills data from context:', bills); // Debugging line
+
+            function populateBillDropdown(selectedBillIdToSet = null) {
+                modalBillNumberSelect.innerHTML = '<option value="">Select a Bill Number</option>';
+                bills.forEach(bill => {
+                    const option = document.createElement('option');
+                    option.value = bill.id;
+                    option.textContent = bill.bill_number;
+                    modalBillNumberSelect.appendChild(option);
+                });
+                if (selectedBillIdToSet) {
+                    modalBillNumberSelect.value = selectedBillIdToSet;
+                    selectedBillId = selectedBillIdToSet;
+                }
+            }
+
+            // Event listener for when a bill number is selected from the dropdown
+            modalBillNumberSelect.addEventListener('change', async function() {
+                const selectedOption = this.options[this.selectedIndex];
+                if (selectedOption && selectedOption.value) {
+                    selectedBillId = selectedOption.value; // The value of the option is the bill ID
+                    await fetchBillItemsForModal(selectedBillId);
+                    modalBillItemSelect.disabled = false;
+                    modalQuantityReturnedInput.disabled = true; // Disable until item is selected
+                    maxQuantityInfo.textContent = '';
+                } else {
+                    selectedBillId = null;
+                    modalBillItemSelect.innerHTML = '<option value="">Select a Bill Item</option>';
+                    modalBillItemSelect.disabled = true;
+                    modalQuantityReturnedInput.disabled = true;
+                    maxQuantityInfo.textContent = '';
+                }
+            });
+
+            async function fetchBillItemsForModal(billId, selectedBillItemIdToSet = null, quantityToSet = null) {
+                modalBillItemSelect.innerHTML = '<option value="">Loading items...</option>';
+                try {
+                    const response = await fetch(`/billing/get_bill_items/${billId}/`);
+                    const data = await response.json();
+
+                    modalBillItemSelect.innerHTML = '<option value="">Select a Bill Item</option>'; // Clear previous options
+                    if (data.success) {
+                        data.items.forEach(item => {
+                            const option = document.createElement('option');
+                            option.value = item.id;
+                            option.textContent = `${item.name} (Billed: ${parseFloat(item.quantity).toFixed(2)})`;
+                            option.dataset.maxQuantity = parseFloat(item.quantity);
+                            modalBillItemSelect.appendChild(option);
+                        });
+                        if (selectedBillItemIdToSet) {
+                            modalBillItemSelect.value = selectedBillItemIdToSet;
+                            modalBillItemSelect.disabled = false;
+                            const selectedOption = modalBillItemSelect.options[modalBillItemSelect.selectedIndex];
+                            const maxQuantity = parseFloat(selectedOption.dataset.maxQuantity);
+                            modalQuantityReturnedInput.max = maxQuantity;
+                            modalQuantityReturnedInput.value = quantityToSet;
+                            modalQuantityReturnedInput.disabled = false;
+                            maxQuantityInfo.textContent = `Max returnable: ${maxQuantity}`;
+                        }
+                    } else {
+                        alert(`Error fetching bill items: ${data.message}`);
+                    }
+                } catch (error) {
+                    console.error('Error fetching bill items:', error);
+                    alert('An error occurred while fetching bill items.');
+                }
+            }
+
+            // Event listener for bill item selection in modal
+            modalBillItemSelect.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                if (selectedOption && selectedOption.value) {
+                    const maxQuantity = parseFloat(selectedOption.dataset.maxQuantity);
+                    modalQuantityReturnedInput.max = maxQuantity;
+                    modalQuantityReturnedInput.value = 0; // Reset quantity on item change
+                    modalQuantityReturnedInput.disabled = false;
+                    maxQuantityInfo.textContent = `Max returnable: ${maxQuantity}`;
+                } else {
+                    modalQuantityReturnedInput.disabled = true;
+                    maxQuantityInfo.textContent = '';
+                }
+            });
+
+            // Handle Add Return button click
+            addReturnBtn.addEventListener('click', function() {
+                returnModalLabel.textContent = 'Add New Return';
+                submitReturnBtn.textContent = 'Submit Return';
+                returnForm.reset();
+                returnIdInput.value = '';
+                populateBillDropdown();
+                modalBillItemSelect.innerHTML = '<option value="">Select a Bill Item</option>';
+                modalBillItemSelect.disabled = true;
+                modalQuantityReturnedInput.disabled = true;
+                maxQuantityInfo.textContent = '';
+                selectedBillId = null;
+                returnModal.show();
+            });
+
+            // Handle Edit Return button click
+            $(document).on('click', '.edit-return-btn', async function() {
+                const returnId = $(this).data('id');
+                returnModalLabel.textContent = 'Edit Return';
+                submitReturnBtn.textContent = 'Update Return';
+                returnIdInput.value = returnId;
+
+                try {
+                    const response = await fetch(`/billing/return_api/${returnId}/`);
+                    const data = await response.json();
+
+                    if (data.success) {
+                        const returnItem = data.return_item;
+                        populateBillDropdown(returnItem.bill_id);
+                        await fetchBillItemsForModal(returnItem.bill_id, returnItem.bill_item_id, returnItem.quantity_returned);
+                        modalReasonTextarea.value = returnItem.reason;
+                        returnModal.show();
+                    } else {
+                        alert(`Error fetching return details: ${data.message}`);
+                    }
+                } catch (error) {
+                    console.error('Error fetching return details:', error);
+                    alert('An error occurred while fetching return details.');
+                }
+            });
+
+            // Handle modal form submission
+            returnForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+
+                const currentReturnId = returnIdInput.value;
+                const billItemId = modalBillItemSelect.value;
+                const quantityReturned = parseFloat(modalQuantityReturnedInput.value);
+                const reason = modalReasonTextarea.value.trim();
+                const maxQuantity = parseFloat(modalQuantityReturnedInput.max);
+
+                if (!selectedBillId || !billItemId || quantityReturned <= 0 || isNaN(quantityReturned) || quantityReturned > maxQuantity || !reason) {
+                    alert('Please fill all fields correctly and ensure quantity is valid.');
+                    return;
+                }
+
+                const method = currentReturnId ? 'PUT' : 'POST';
+                const url = currentReturnId ? `/billing/return_api/${currentReturnId}/` : '/billing/return_item/';
+                const confirmationMessage = currentReturnId ? 'Are you sure you want to update this return?' : 'Are you sure you want to add this return?';
+
+                if (confirm(confirmationMessage)) {
+                    try {
+                        const response = await fetch(url, {
+                            method: method,
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrftoken
+                            },
+                            body: JSON.stringify({
+                                bill_item_id: billItemId,
+                                quantity_returned: quantityReturned,
+                                reason: reason
+                            })
+                        });
+                        const data = await response.json();
+
+                        if (data.success) {
+                            returnModal.hide();
+                            returnForm.reset();
+                            applyFilters(); // Refresh table
+                        } else {
+                            alert(`Error: ${data.message}`);
+                        }
+                    } catch (error) {
+                        console.error('Error submitting return:', error);
+                        alert('An error occurred while submitting the return. Please try again.');
+                    }
+                }
+            });
+
+            // Reset modal form when hidden
+            returnModalElement.addEventListener('hidden.bs.modal', function () {
+                returnForm.reset();
+                populateBillDropdown(); // Repopulate dropdown on hide
+                modalBillItemSelect.innerHTML = '<option value="">Select a Bill Item</option>';
+                modalBillItemSelect.disabled = true;
+                modalQuantityReturnedInput.disabled = true;
+                maxQuantityInfo.textContent = '';
+                selectedBillId = null;
+            });
+
+            // Populate bills when the modal is shown
+            returnModalElement.addEventListener('show.bs.modal', function () {
+                // This is handled by addReturnBtn and edit-return-btn now
+            });
+        });
+    </script>
+{% endblock %}

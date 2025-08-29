@@ -89,6 +89,7 @@ class Return(models.Model):
     bill_item = models.ForeignKey(BillItem, on_delete=models.CASCADE)
     quantity_returned = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
+    reason = models.CharField(max_length=255, default='not used')
 
     def __str__(self):
-        return f"Return: {self.bill_item.item.name} - {self.quantity_returned}"
+        return f"Return: Bill {self.bill_item.bill.bill_number} - {self.bill_item.item.name} x {self.quantity_returned}"

@@ -13,7 +13,8 @@ from weasyprint import HTML
 from django.template.loader import render_to_string
 
 from stock.models import InventoryItem, InventoryCategory
-from .models import Bill, BillItem, Customer
+from .models import Bill, BillItem, Customer, Return
+from datetime import datetime
 
 @csrf_exempt
 def bulk_delete_bills(request):
@@ -174,9 +175,11 @@ def export_bills_excel(request):
     return response
 
 def billing_home(request):
-    bills_list = Bill.objects.all().filter(status__in=['open', 'closed']).order_by('-created_at')
+    bills_list = Bill.objects.all().filter(status__in=['open', 'closed']).order_by('-status')
 
     search_term = request.GET.get('search_term')
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
 
     if search_term:
         bills_list = bills_list.filter(
@@ -184,7 +187,15 @@ def billing_home(request):
             Q(bill_number__icontains=search_term)
         )
 
-    paginator = Paginator(bills_list, 10) # Show 10 bills per page
+    if start_date_str:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        bills_list = bills_list.filter(created_at__date__gte=start_date)
+
+    if end_date_str:
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        bills_list = bills_list.filter(created_at__date__lte=end_date)
+
+    paginator = Paginator(bills_list, 10)
     page = request.GET.get('page')
 
     try:
@@ -228,16 +239,316 @@ def billing_home(request):
 
     return render(request, 'billing/home.html', context)
 
+@csrf_exempt
+def get_bill_items(request, bill_id):
+    if request.method == 'GET':
+        print(f"Received request for bill_id: {bill_id}")
+        try:
+            bill = get_object_or_404(Bill, id=bill_id)
+            bill_items_data = []
+            for item in bill.items.all():
+                bill_items_data.append({
+                    'id': item.id,
+                    'name': item.item.name,
+                    'quantity': float(item.quantity),
+                    'unit_of_measure': item.item.unit_of_measure,
+                })
+            print(f"Returning {len(bill_items_data)} items for bill_id {bill_id}")
+            return JsonResponse({'success': True, 'items': bill_items_data})
+        except Bill.DoesNotExist:
+            print(f"Bill with id {bill_id} not found.")
+            return JsonResponse({'success': False, 'message': 'Bill not found.'}, status=404)
+        except Exception as e:
+            import traceback
+            print(f"Error in get_bill_items for bill_id {bill_id}: {e}")
+            print(traceback.format_exc())
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+@csrf_exempt
+def get_bill_details_by_number(request, bill_number):
+    if request.method == 'GET':
+        try:
+            bill = get_object_or_404(Bill, bill_number=bill_number)
+            bill_items_data = []
+            for item in bill.items.all():
+                bill_items_data.append({
+                    'bill_item_id': item.id, # Add bill_item_id for return functionality
+                    'item_id': item.item.id,
+                    'sku': item.item.sku,
+                    'name': item.item.name,
+                    'category_name': item.item.category.name,
+                    'quantity': float(item.quantity),
+                    'retail_price': float(item.price_per_unit),
+                    'discount_type': item.discount_type,
+                    'discount_amount': float(item.discount_amount),
+                    'unit_of_measure': item.item.unit_of_measure,
+                })
+
+            customer_data = {
+                'name': bill.customer.name,
+                'cnic': bill.customer.cnic,
+                'phone': bill.customer.phone,
+                'address': bill.customer.address,
+            }
+
+            bill_data = {
+                'id': bill.id,
+                'bill_number': bill.bill_number,
+                'customer': customer_data,
+                'rent_amount': float(bill.rent_amount),
+                'rent_payer': bill.rent_payer,
+                'rent_customer_amount': float(bill.rent_customer_amount),
+                'rent_company_amount': float(bill.rent_company_amount),
+                'payment_method': bill.payment_method,
+                'amount_paid': float(bill.amount_paid),
+                'online_amount_paid': float(bill.online_amount_paid),
+                'status': bill.status,
+                'items': bill_items_data,
+            }
+            return JsonResponse({'success': True, 'bill': bill_data})
+        except Bill.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Bill not found.'}, status=404)
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+@csrf_exempt
+def return_item_view(request):
+    import traceback
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body) 
+            bill_item_id = data.get('bill_item_id')
+            quantity_returned = Decimal(str(data.get('quantity_returned')))
+            reason = data.get('reason')
+
+            with transaction.atomic():
+                bill_item = get_object_or_404(BillItem, id=bill_item_id)
+                bill = bill_item.bill
+
+                if quantity_returned <= 0 or quantity_returned > bill_item.quantity:
+                    print('first if')
+                    return JsonResponse({'success': False, 'message': 'Invalid quantity for return.'}, status=400)
+
+                # Create a new Return record
+                Return.objects.create(
+                    bill_item=bill_item,
+                    quantity_returned=quantity_returned,
+                    reason=reason
+                )
+
+                # Update stock quantity
+                inventory_item = bill_item.item
+                inventory_item.total_stock_quantity += quantity_returned
+                inventory_item.save()
+
+                # Optionally, update the BillItem's quantity if partial return
+                bill_item.quantity -= quantity_returned
+                bill_item.save()
+
+            print('success')
+            return JsonResponse({'success': True, 'message': 'Item returned successfully!'})
+        except json.JSONDecodeError:
+            print('first error')
+            print(traceback.format_exc())
+            return JsonResponse({'success': False, 'message': 'Invalid JSON data.'}, status=400)
+        except Exception as e:
+            print('second error')
+            print(traceback.format_exc())
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+    
+    returns_list = Return.objects.all().order_by('-created_at')
+
+    search_term = request.GET.get('search_term')
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+
+    if search_term:
+        returns_list = returns_list.filter(
+            Q(bill_item__bill__customer__name__icontains=search_term) |
+            Q(bill_item__bill__bill_number__icontains=search_term) |
+            Q(bill_item__item__name__icontains=search_term)
+        )
+
+    if start_date_str:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        returns_list = returns_list.filter(created_at__date__gte=start_date)
+
+    if end_date_str:
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        returns_list = returns_list.filter(created_at__date__lte=end_date)
+
+    paginator = Paginator(returns_list, 10)
+    page = request.GET.get('page')
+
+    try:
+        returns = paginator.page(page)
+    except PageNotAnInteger:
+        returns = paginator.page(1)
+    except EmptyPage:
+        returns = paginator.page(paginator.num_pages)
+
+    returns_data = []
+    for ret in returns:
+        returns_data.append({
+            'id': ret.id,
+            'bill_number': ret.bill_item.bill.bill_number,
+            'customer_name': ret.bill_item.bill.customer.name,
+            'item_name': ret.bill_item.item.name,
+            'quantity_returned': float(ret.quantity_returned),
+            'reason': ret.reason,
+            'return_date': ret.created_at.isoformat(),
+        })
+
+    context = {
+        'selected_page': 'return_item',
+        'bills_json': json.dumps(list(Bill.objects.filter(status='closed').order_by('-created_at').values('id', 'bill_number'))),
+        'returns': returns_data,
+        'page_obj': returns,
+    }
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        pagination_html = render(request, 'stock/pagination.html', {'page_obj': returns, 'request': request}).content.decode('utf-8')
+        return JsonResponse({
+            'returns': returns_data,
+            'pagination_html': pagination_html
+        })
+
+    return render(request, 'billing/return_item.html', context)
+
+@csrf_exempt
+def bulk_delete_returns(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            return_ids = data.get('return_ids', [])
+
+            if not return_ids:
+                return JsonResponse({'success': False, 'error': 'No return IDs provided.'}, status=400)
+
+            with transaction.atomic():
+                deleted_count = 0
+                for return_id in return_ids:
+                    try:
+                        return_obj = Return.objects.get(id=return_id)
+                        # Restore stock for the returned item
+                        inventory_item = return_obj.bill_item.item
+                        inventory_item.total_stock_quantity -= return_obj.quantity_returned
+                        inventory_item.save()
+                        return_obj.delete()
+                        deleted_count += 1
+                    except Return.DoesNotExist:
+                        pass
+                return JsonResponse({'success': True, 'message': f'{deleted_count} return(s) deleted successfully!'})
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': 'Invalid JSON data.'}, status=400)
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+@csrf_exempt
+def return_detail_api(request, return_id):
+    if request.method == 'GET':
+        try:
+            return_obj = get_object_or_404(Return, id=return_id)
+            return JsonResponse({
+                'success': True,
+                'return_item': {
+                    'id': return_obj.id,
+                    'bill_id': return_obj.bill_item.bill.id,
+                    'bill_item_id': return_obj.bill_item.id,
+                    'bill_number': return_obj.bill_item.bill.bill_number,
+                    'item_name': return_obj.bill_item.item.name,
+                    'quantity_returned': float(return_obj.quantity_returned),
+                    'reason': return_obj.reason,
+                    'return_date': return_obj.created_at.isoformat(),
+                }
+            })
+        except Return.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Return not found.'}, status=404)
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+    elif request.method == 'PUT':
+        try:
+            return_obj = get_object_or_404(Return, id=return_id)
+            data = json.loads(request.body)
+            
+            new_bill_item_id = data.get('bill_item_id')
+            new_quantity_returned = Decimal(str(data.get('quantity_returned')))
+            new_reason = data.get('reason')
+
+            if not new_bill_item_id or new_quantity_returned <= 0 or not new_reason:
+                return JsonResponse({'success': False, 'message': 'All fields are required and quantity must be positive.'}, status=400)
+
+            with transaction.atomic():
+                old_bill_item = return_obj.bill_item
+                old_quantity_returned = return_obj.quantity_returned
+                old_inventory_item = old_bill_item.item
+
+                old_inventory_item.total_stock_quantity -= old_quantity_returned
+                old_inventory_item.save()
+
+                new_bill_item = get_object_or_404(BillItem, id=new_bill_item_id)
+                new_inventory_item = new_bill_item.item
+
+                if new_quantity_returned > new_bill_item.quantity:
+                    transaction.set_rollback(True)
+                    return JsonResponse({'success': False, 'message': f'Quantity returned ({new_quantity_returned}) cannot exceed original billed quantity ({new_bill_item.quantity}) for selected item.'}, status=400)
+
+
+                new_inventory_item.total_stock_quantity += new_quantity_returned
+                new_inventory_item.save()
+
+                return_obj.bill_item = new_bill_item
+                return_obj.quantity_returned = new_quantity_returned
+                return_obj.reason = new_reason
+                return_obj.save()
+
+            return JsonResponse({'success': True, 'message': 'Return updated successfully!'})
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'message': 'Invalid JSON data.'}, status=400)
+        except BillItem.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Selected Bill Item not found.'}, status=404)
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc())
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+    elif request.method == 'DELETE':
+        try:
+            return_obj = get_object_or_404(Return, id=return_id)
+            with transaction.atomic():
+                # Restore stock for the returned item
+                inventory_item = return_obj.bill_item.item
+                inventory_item.total_stock_quantity -= return_obj.quantity_returned
+                inventory_item.save()
+                return_obj.delete()
+            return JsonResponse({'success': True, 'message': 'Return deleted successfully!'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
+
 def paid_later(request):
     bills_list = Bill.objects.filter(status='paid_later').order_by('-created_at')
 
     search_term = request.GET.get('search_term')
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
 
     if search_term:
         bills_list = bills_list.filter(
             Q(customer__name__icontains=search_term) |
             Q(bill_number__icontains=search_term)
         )
+
+    if start_date_str:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        bills_list = bills_list.filter(created_at__date__gte=start_date)
+
+    if end_date_str:
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        # Add one day to the end_date to include the entire end day
+        bills_list = bills_list.filter(created_at__date__lte=end_date)
 
     paginator = Paginator(bills_list, 10)
     page = request.GET.get('page')
@@ -620,12 +931,23 @@ def advance_booking_view(request):
     bills_list = Bill.objects.filter(status='advance').order_by('-created_at')
 
     search_term = request.GET.get('search_term')
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
 
     if search_term:
         bills_list = bills_list.filter(
             Q(customer__name__icontains=search_term) |
             Q(bill_number__icontains=search_term)
         )
+
+    if start_date_str:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        bills_list = bills_list.filter(created_at__date__gte=start_date)
+
+    if end_date_str:
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        # Add one day to the end_date to include the entire end day
+        bills_list = bills_list.filter(created_at__date__lte=end_date)
 
     paginator = Paginator(bills_list, 10)
     page = request.GET.get('page')
