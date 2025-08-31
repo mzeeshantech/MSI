@@ -210,7 +210,7 @@
             $('#categoryTableBody').on('click', '.delete-category', function() {
                 const categoryId = $(this).data('id');
                 if (confirm('Are you sure you want to delete this category?')) {
-                    fetch(`/stock/delete_category/${categoryId}/`, {
+                    fetch(`/delete_category/${categoryId}/`, {
                         method: 'POST',
                         headers: {
                             'X-CSRFToken': csrftoken,

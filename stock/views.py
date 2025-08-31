@@ -56,14 +56,15 @@ def stock_items(request):
         category_id = request.POST.get('category')
 
         category = get_object_or_404(InventoryCategory, pk=category_id) if category_id else None
-
+        sale_price = request.POST.get('sale_price', 0)
+        sale_price = sale_price if sale_price != "" else 0
         item_data = {
             'name': request.POST.get('name'),
             'sku': request.POST.get('sku'),
             'category': category,
             'unit_of_measure': request.POST.get('unit_of_measure'),
             'is_sold_in_kgs': 'is_sold_in_kgs' in request.POST,
-            'sale_price': request.POST.get('sale_price'), # Add sale_price
+            'sale_price': sale_price, # Add sale_price
         }
 
         if item_id:
