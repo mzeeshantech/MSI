@@ -1004,9 +1004,9 @@
             $('#markBillClosedBtn').on('click', function() {
                 const billId = $('#bill_id').val();
                 const changeDue = parseFloat($('#change_due').val());
-
-                if (changeDue !== 0) {
-                    alert('Change Due must be 0 before marking the bill as closed.');
+                console.log(changeDue)
+                if (changeDue > 0) {
+                    alert('Received payment cannot be more than Grand total.');
                     return;
                 }
 
