@@ -542,11 +542,13 @@
                 fetchReturnsData(url);
             });
 
-            // Bulk Delete functionality
-            selectAllReturnsCheckbox.addEventListener('change', function() {
-                $('.return-checkbox').prop('checked', this.checked);
-                toggleBulkDeleteButton();
-            });
+            if (selectAllReturnsCheckbox) {
+                // Bulk Delete functionality
+                selectAllReturnsCheckbox.addEventListener('change', function() {
+                    $('.return-checkbox').prop('checked', this.checked);
+                    toggleBulkDeleteButton();
+                });
+            }
 
             $(document).on('change', '.return-checkbox', function() {
                 toggleBulkDeleteButton();
