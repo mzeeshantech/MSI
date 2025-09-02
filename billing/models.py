@@ -16,6 +16,7 @@ class Bill(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True)
     bill_number = models.CharField(max_length=50, unique=True, blank=True, null=True) # New field
     created_at = models.DateTimeField(auto_now_add=True)
+    closed_at = models.DateTimeField(null = True, blank=True )
     total_amount = models.DecimalField(max_digits=12, decimal_places=2)
     amount_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 

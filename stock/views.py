@@ -4,6 +4,7 @@ from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 import openpyxl
+from decimal import Decimal
 
 from .models import InventoryItem, InventoryCategory, Supplier, InventoryHistory
 
@@ -143,7 +144,7 @@ def item_detail(request, item_id):
 def restore_item(request):
     if request.method == 'POST' and request.headers.get('x-requested-with') == 'XMLHttpRequest':
         item_id = request.POST.get('item_id')
-        quantity = int(request.POST.get('quantity'))
+        quantity = Decimal(request.POST.get('quantity'))
         unit_price = request.POST.get('unit_price')
         retail_price_per_unit = request.POST.get('retail_price_per_unit')
         supplier_id = request.POST.get('supplier')

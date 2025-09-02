@@ -107,6 +107,7 @@ def mark_bill_closed(request, bill_id):
             bill.rent_payer = rent_payer
             bill.rent_customer_amount = rent_customer_amount
             bill.rent_company_amount = rent_company_amount
+            bill.closed_at = datetime.now()
             bill.status = 'closed'
             bill.save()
             return JsonResponse({'success': True, 'message': 'Bill marked as closed successfully!'})

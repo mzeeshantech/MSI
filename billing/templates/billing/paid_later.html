@@ -997,42 +997,44 @@
                 const billId = $('#bill_id').val();
                 const changeDue = parseFloat($('#change_due').val());
 
-                if (changeDue !== 0) {
-                    alert('Change Due must be 0 before marking the bill as closed.');
+                if (changeDue > 0) {
+                    alert('Received payment cannot be more than Grand total.');
                     return;
                 }
 
                 const cashReceived = parseFloat($('#cash_received').val()) || 0;
                 const onlineReceived = parseFloat($('#online_received').val()) || 0;
                 const paymentMethod = $('#payment_method').val();
-
-                fetch(`/billing/mark_bill_closed/${billId}/`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': csrftoken,
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify({
-                        cash_received: cashReceived,
-                        online_received: onlineReceived,
-                        payment_method: paymentMethod
+                
+                if (confirm('Are you sure you want to mark this bill as closed? This action cannot be undone.')) {
+                    fetch(`/billing/mark_bill_closed/${billId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrftoken,
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            cash_received: cashReceived,
+                            online_received: onlineReceived,
+                            payment_method: paymentMethod
+                        })
                     })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const generateBillModal = bootstrap.Modal.getInstance(document.getElementById('generateBillModal'));
-                        generateBillModal.hide();
-                        location.reload();
-                    } else {
-                        alert("Error: " + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred while marking the bill as closed.');
-                });
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const generateBillModal = bootstrap.Modal.getInstance(document.getElementById('generateBillModal'));
+                            generateBillModal.hide();
+                            location.reload();
+                        } else {
+                            alert("Error: " + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while marking the bill as closed.');
+                    });
+                }
             });
 
             // Bulk Delete functionality
