@@ -279,6 +279,7 @@ def get_bill_details_by_number(request, bill_number):
                     'sku': item.item.sku,
                     'name': item.item.name,
                     'category_name': item.item.category.name,
+                    'category_id': item.item.category.id,
                     'quantity': float(item.quantity),
                     'retail_price': float(item.price_per_unit),
                     'discount_type': item.discount_type,

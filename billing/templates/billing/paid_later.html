@@ -548,6 +548,7 @@
         const csrftoken = getCookie('csrftoken');
 
         let billItems = [];
+        let editingItemIndex = null;
 
         function calculateGrandTotal() {
             let total = 0;
@@ -566,12 +567,11 @@
 
             let finalTotal = total;
 
-            if (rentPayer === 'customer' || rentPayer === 'shared') {
+            if (rentPayer === 'customer') {
                 finalTotal += rent;
             } else if (rentPayer === 'both') {
                 const customerRent = parseFloat(document.getElementById('rent_customer_amount').value) || 0;
-                const companyRent = parseFloat(document.getElementById('rent_company_amount').value) || 0;
-                finalTotal += (customerRent + companyRent);
+                finalTotal += customerRent;
             }
             
             document.getElementById('grand_total').innerText = `Rs. ${finalTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
@@ -629,16 +629,27 @@
                     <td>Rs. ${item.retailPrice.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                     <td>Rs. ${itemPriceAfterDiscount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                     <td>Rs. ${lineTotalAfterDiscount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                    <td><button type="button" class="btn btn-danger btn-sm remove-item" data-index="${index}"><i class="fas fa-trash-alt"></i></button></td>
+                    <td>
+                        <button type="button" class="btn btn-primary btn-sm edit-item me-1" data-index="${index}"><i class="fas fa-edit"></i></button>
+                        <button type="button" class="btn btn-danger btn-sm remove-item" data-index="${index}"><i class="fas fa-trash-alt"></i></button>
+                    </td>
                 `;
             });
             calculateGrandTotal();
         }
 
         document.addEventListener("DOMContentLoaded", function () {
-            // Fetch SKUs based on category selection
-            $('#item_category').on('change', function() {
-                const categoryId = $(this).val();
+            let categoryNameToIdMap = {};
+            // Populate categoryNameToIdMap on load
+            $('#item_category option').each(function() {
+                if ($(this).val() && $(this).text()) {
+                    categoryNameToIdMap[$(this).text()] = $(this).val();
+                }
+            });
+
+            // Function to fetch SKUs based on category selection with an optional callback
+            function fetchSkusByCategory(categoryId, callback = null) {
+                console.log('fetchSkusByCategory called with categoryId:', categoryId);
                 const skuSelect = $('#item_sku');
                 skuSelect.empty().append('<option value="" selected disabled>Loading SKUs...</option>').prop('disabled', true);
                 $('#item_retail_price').val('');
@@ -651,14 +662,41 @@
                     fetch(`/billing/get_skus_by_category/${categoryId}/`)
                         .then(response => response.json())
                         .then(data => {
+                            console.log('SKUs fetched for categoryId ' + categoryId + ':', data.skus);
                             skuSelect.empty().append('<option value="" selected disabled>Select SKU</option>');
                             if (data.skus && data.skus.length > 0) {
                                 data.skus.forEach(sku => {
-                                    skuSelect.append(`<option value="${sku.id}" data-price="${sku.sale_price}" data-unit="${sku.unit_of_measure}" data-stock="${sku.total_stock_quantity}">${sku.sku} - ${sku.name}</option>`);
+                                    // Ensure value is a string for consistent comparison
+                                    skuSelect.append(`<option value="${String(sku.id)}" data-price="${sku.sale_price}" data-unit="${sku.unit_of_measure}" data-stock="${sku.total_stock_quantity}">${sku.sku} - ${sku.name}</option>`);
                                 });
                                 skuSelect.prop('disabled', false);
+
+                                // If only one SKU is available, select it automatically
+                                if (data.skus.length === 1) {
+                                    console.log('Only one SKU found. Automatically selecting:', data.skus[0].id);
+                                    const singleSkuId = String(data.skus[0].id);
+                                    skuSelect.val(singleSkuId);
+                                    console.log('SKU select value after setting:', skuSelect.val());
+                                    
+                                    // Manually call the SKU change logic to ensure fields are updated immediately
+                                    const selectedOption = skuSelect.find('option:selected');
+                                    const retailPrice = selectedOption.data('price');
+                                    const unitOfMeasure = selectedOption.data('unit');
+                                    const totalStock = selectedOption.data('stock');
+
+                                    $('#item_retail_price').val(retailPrice !== undefined && retailPrice !== null ? parseFloat(retailPrice).toFixed(2) : '');
+                                    $('#quantity_unit').text(unitOfMeasure === 'KG' ? 'KG\'s' : 'Pieces');
+                                    $('#total_stock_available').text(totalStock !== undefined && totalStock !== null ? parseFloat(totalStock).toLocaleString() : '0');
+
+                                    $('#item_quantity').removeClass('is-invalid');
+                                    $('#stock_feedback').text('');
+                                }
                             } else {
+                                console.log('No SKUs found for categoryId ' + categoryId);
                                 skuSelect.append('<option value="" selected disabled>No SKUs found for this category</option>');
+                            }
+                            if (callback) {
+                                callback();
                             }
                         })
                         .catch(error => {
@@ -666,8 +704,16 @@
                             skuSelect.empty().append('<option value="" selected disabled>Error loading SKUs</option>');
                         });
                 } else {
+                    console.log('No categoryId provided, resetting SKU select.');
                     skuSelect.empty().append('<option value="" selected disabled>Select SKU</option>').prop('disabled', true);
                 }
+            }
+
+            // Event listener for category selection
+            $('#item_category').on('change', function() {
+                const categoryId = $(this).val();
+                console.log('Category changed to:', categoryId);
+                fetchSkusByCategory(categoryId);
             });
 
             // Auto-fill retail price and display stock when SKU is selected
@@ -720,6 +766,7 @@
                 const sku = selectedSkuOption ? selectedSkuOption.text.split(' - ')[0] : '';
                 const name = selectedSkuOption ? selectedSkuOption.text.split(' - ')[1] : '';
                 const categoryName = selectedCategoryOption ? selectedCategoryOption.text : '';
+                const categoryId = selectedCategoryOption ? selectedCategoryOption.value : null; // Get categoryId here
                 const quantity = parseFloat(quantityInput.value);
                 const retailPrice = parseFloat(retailPriceInput.value);
                 const unitOfMeasure = selectedSkuOption ? selectedSkuOption.dataset.unit : '';
@@ -738,22 +785,81 @@
                     return;
                 }
 
-                billItems.push({
+                const newItem = {
                     itemId: itemId,
                     sku: sku,
                     name: name,
                     categoryName: categoryName,
+                    categoryId: categoryId, // Add categoryId here
                     quantity: quantity,
                     retailPrice: retailPrice,
                     itemDiscountType: itemDiscountType,
                     itemDiscountAmount: itemDiscountAmount,
-                    unitOfMeasure: unitOfMeasure, // Add unit of measure
-                    totalStock: totalStock // Add total stock for reference
-                });
+                    unitOfMeasure: unitOfMeasure,
+                    totalStock: totalStock
+                };
+
+                if (editingItemIndex !== null) {
+                    // Update existing item
+                    billItems[editingItemIndex] = newItem;
+                    editingItemIndex = null; // Reset editing state
+                    $('#addItemToBill').html('<i class="fas fa-plus"></i> Add Item to Bill').removeClass('btn-warning').addClass('btn-primary');
+                } else {
+                    // Add new item
+                    billItems.push(newItem);
+                }
 
                 renderBillItems();
+                resetAddItemForm();
+            });
 
-                // Clear item selection fields
+            // Remove item from bill
+            $(document).on('click', '.remove-item', function() {
+                const index = $(this).data('index');
+                billItems.splice(index, 1);
+                renderBillItems();
+            });
+
+            // Edit item in bill
+            $(document).on('click', '.edit-item', function() {
+                editingItemIndex = $(this).data('index');
+                const itemToEdit = billItems[editingItemIndex];
+                console.log('Item to edit:', itemToEdit); // Log the item to debug
+
+                // Populate "Add Items" section with itemToEdit data
+                $('#item_category').val(itemToEdit.categoryId); // Use categoryId
+                $('#item_category').trigger('change'); // Explicitly trigger change to ensure SKUs are loaded
+
+                // Trigger SKU fetch with a callback to populate other fields after SKUs are loaded
+                fetchSkusByCategory(itemToEdit.categoryId, () => {
+                    console.log('SKUs loaded for category:', itemToEdit.categoryId);
+                    console.log('Attempting to set SKU dropdown value to:', String(itemToEdit.itemId)); // Convert to string
+                    $('#item_sku').val(String(itemToEdit.itemId)); // Convert to string
+                    
+                    // Verify if the SKU was actually set
+                    if ($('#item_sku').val() === String(itemToEdit.itemId)) { // Convert to string for comparison
+                        console.log('SKU dropdown value successfully set to:', itemToEdit.itemId);
+                        $('#item_sku').trigger('change'); // Trigger change to update retail price, unit, stock
+                    } else {
+                        console.error('Failed to set SKU dropdown value. Value in dropdown:', $('#item_sku').val(), 'Expected:', itemToEdit.itemId);
+                        // This might happen if the itemToEdit.itemId is not in the loaded SKUs
+                        // We might need to re-fetch SKUs if the item is not found, or handle this case
+                    }
+
+                    $('#item_quantity').val(itemToEdit.quantity);
+                    $('#item_discount_type').val(itemToEdit.itemDiscountType);
+                    $('#item_discount_amount').val(itemToEdit.itemDiscountAmount.toFixed(2));
+                });
+
+                // Change button text and style
+                $('#addItemToBill').html('<i class="fas fa-sync-alt"></i> Update Item').removeClass('btn-primary').addClass('btn-warning');
+            });
+
+            function resetAddItemForm() {
+                const skuSelect = document.getElementById('item_sku');
+                const quantityInput = document.getElementById('item_quantity');
+                const retailPriceInput = document.getElementById('item_retail_price');
+
                 skuSelect.value = "";
                 quantityInput.value = "";
                 retailPriceInput.value = "";
@@ -765,14 +871,9 @@
                 $('#total_stock_available').text('0'); // Clear total stock display
                 $('#item_quantity').removeClass('is-invalid'); // Clear validation
                 $('#stock_feedback').text(''); // Clear feedback
-            });
-
-            // Remove item from bill
-            $(document).on('click', '.remove-item', function() {
-                const index = $(this).data('index');
-                billItems.splice(index, 1);
-                renderBillItems();
-            });
+                editingItemIndex = null; // Ensure editing state is reset
+                $('#addItemToBill').html('<i class="fas fa-plus"></i> Add Item to Bill').removeClass('btn-warning').addClass('btn-primary');
+            }
 
             // Recalculate grand total on rent change
             $('#rent_amount, #rent_customer_amount, #rent_company_amount, #rent_payer').on('input change', calculateGrandTotal);
@@ -900,11 +1001,7 @@
                 billForm.classList.remove('was-validated');
                 billItems = [];
                 renderBillItems();
-                $('#item_category').val('');
-                $('#item_sku').empty().append('<option value="" selected disabled>Select SKU</option>').prop('disabled', true);
-                $('#item_retail_price').val('');
-                $('#item_discount_type').val('none');
-                $('#item_discount_amount').val('0.00');
+                resetAddItemForm(); // Use the new reset function
                 $('#rent_amount').val('0.00');
                 $('#rent_payer').val('customer').trigger('change'); // Reset and trigger change
                 $('#payment_method').val('cash').trigger('change'); // Reset and trigger change
@@ -960,6 +1057,7 @@
                             sku: item.sku,
                             name: item.name,
                             categoryName: item.category_name,
+                            categoryId: item.category_id || categoryNameToIdMap[item.category_name], // Use existing category_id or look up from map
                             quantity: parseFloat(item.quantity),
                             retailPrice: parseFloat(item.retail_price),
                             itemDiscountType: item.discount_type,
@@ -999,6 +1097,10 @@
 
                 if (changeDue > 0) {
                     alert('Received payment cannot be more than Grand total.');
+                    return;
+                }
+                if (changeDue < -300){
+                    alert("Change difference can't be more then Rs:300");
                     return;
                 }
 

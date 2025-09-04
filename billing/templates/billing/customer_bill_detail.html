@@ -238,6 +238,9 @@
             </div>
             <div class="header-info">
                 <p><strong>Date:</strong> {{ bill.created_at|date:"d M, Y" }}</p>
+                {% if bill.status == "advance" %}
+                    <p><strong>Advance Booking Slip</strong></p>
+                {% endif %}
             </div>
         </div>
 
@@ -259,6 +262,7 @@
                     <th>Item Name</th>
                     <th class="text-right">Quantity</th>
                     <th class="text-right">Price/Unit</th>
+                    <th class="text-right">Unit price after discount</th>
                     <th class="text-right">Line Total</th>
                 </tr>
             </thead>
@@ -269,6 +273,9 @@
                     <td>{{ item.item.name }}</td>
                     <td class="text-right">{{ item.quantity|floatformat:"2" }} {{ item.item.unit_of_measure }}</td>
                     <td class="text-right">Rs. {{ item.price_per_unit|floatformat:"2" }}</td>
+                    <td class="text-right">
+                        Rs. {{ item.discounted_unit_price|floatformat:"2" }}
+                    </td>
                     <td class="text-right">
                         Rs. {{ item.get_line_total|floatformat:"2" }}
                     </td>

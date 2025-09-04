@@ -74,13 +74,16 @@ class BillItem(models.Model):
     discount_type = models.CharField(max_length=10, choices=DISCOUNT_TYPE_CHOICES, default='none')
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
-    def get_line_total(self):
+    def discounted_unit_price(self):
         price_after_discount = self.price_per_unit
         if self.discount_type == 'percentage':
             price_after_discount -= (self.price_per_unit * (self.discount_amount / 100))
         elif self.discount_type == 'fixed':
             price_after_discount -= self.discount_amount
-        return self.quantity * price_after_discount
+        return price_after_discount
+
+    def get_line_total(self):
+        return self.quantity * self.discounted_unit_price()
 
     def __str__(self):
         return f"{self.item.name} x {self.quantity}"
