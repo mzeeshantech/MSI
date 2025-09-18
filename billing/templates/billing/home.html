@@ -301,6 +301,7 @@
                         <th><strong><i class="fas fa-money-bill-wave black-color font-10"></i> Grand Total</strong></th>
                         <th><strong><i class="fas fa-home black-color font-10"></i> Rent Amount</strong></th>
                         <th><strong><i class="fas fa-money-bill-alt black-color font-10"></i> Cash Received</strong></th>
+                        <th><strong><i class="fas fa-money-bill-alt black-color font-10"></i> Online Received</strong></th>
                         <th><strong><i class="fas fa-info-circle black-color font-10"></i> Bill Status</strong></th>
                         <th><strong><i class="fas fa-cogs black-color font-10"></i> Action</strong></th>
                     </tr>
@@ -315,6 +316,7 @@
                             <td class="text-success">Rs. {{ bill.total_amount|floatformat:"2"|intcomma }}</td>
                             <td>Rs. {{ bill.rent_amount|floatformat:"2"|intcomma }}</td>
                             <td>Rs. {{ bill.amount_paid|floatformat:"2"|intcomma }}</td>
+                            <td>Rs. {{ bill.online_amount_paid|floatformat:"2"|intcomma }}</td>
                             <td>
                                 <span class="status-{{ bill.status }}">{{ bill.get_status_display }}</span>
                                 {% if bill.status == 'shipped_pending' %}
@@ -498,6 +500,20 @@
                                 </div>
                             </div>
                             <div class="col-md-6 modal-section">
+
+                                <div class="mb-3" id="received_payment_div" style="display: none;">
+                                    <h6 class="text-info"><i class="fas fa-money-check-alt"></i> Received Payment</h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Online:</label>
+                                            <input type="number" step="0.01" class="form-control form-control-sm" id="online_received_readonly" name="online_received_readonly" value="0.00" readonly>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Cash:</label>
+                                            <input type="number" step="0.01" class="form-control form-control-sm" id="cash_received_readonly" name="cash_received_readonly" value="0.00" readonly>
+                                        </div>
+                                    </div>
+                                </div>
                                 <h6 class="text-success"><i class="fas fa-money-check-alt"></i> Payment</h6>
                                 <div class="mb-3">
                                     <label for="payment_method" class="form-label">Payment Method</label>
@@ -508,11 +524,11 @@
                                     </select>
                                 </div>
                                 <div class="mb-3" id="cash_received_div">
-                                    <label for="cash_received" class="form-label">Cash Received</label>
+                                    <label for="cash_received" class="form-label">Cash Receiving</label>
                                     <input type="number" step="0.01" class="form-control form-control-sm" id="cash_received" name="cash_received" value="0.00">
                                 </div>
                                 <div class="mb-3" id="online_received_div" style="display: none;">
-                                    <label for="online_received" class="form-label">Online Received</label>
+                                    <label for="online_received" class="form-label">Online Receiving</label>
                                     <input type="number" step="0.01" class="form-control form-control-sm" id="online_received" name="online_received" value="0.00">
                                 </div>
                                 <div class="mb-3">
@@ -590,20 +606,24 @@
         function calculateChangeDue() {
             const grandTotalText = document.getElementById('grand_total').innerText;
             const grandTotal = parseFloat(grandTotalText.replace('Rs. ', '').replace(/,/g, '')) || 0;
+            const cashReceivedPrev = parseFloat(document.getElementById('cash_received_readonly').value) || 0;
+            const onlineReceivedPrev = parseFloat(document.getElementById('online_received_readonly').value) || 0;
             const cashReceived = parseFloat(document.getElementById('cash_received').value) || 0;
             const onlineReceived = parseFloat(document.getElementById('online_received').value) || 0;
             
             let totalPaid = 0;
+            totalPaid += cashReceivedPrev + onlineReceivedPrev;
+
+
             const paymentMethod = document.getElementById('payment_method').value;
 
             if (paymentMethod === 'cash') {
-                totalPaid = cashReceived;
+                totalPaid += cashReceived;
             } else if (paymentMethod === 'online') {
-                totalPaid = onlineReceived;
+                totalPaid += onlineReceived;
             } else if (paymentMethod === 'both') {
-                totalPaid = cashReceived + onlineReceived;
+                totalPaid += (cashReceived + onlineReceived);
             }
-
             const remainingCharges = grandTotal - totalPaid;
             document.getElementById('remaining_charges_display').value = remainingCharges.toFixed(2);
         }
@@ -1032,6 +1052,9 @@
                     plainFormData.cash_received = 0;
                 }
 
+                plainFormData.cash_received = (parseFloat($('#cash_received').val()) || 0) + (parseFloat($('#cash_received_readonly').val()) || 0);
+                plainFormData.online_received = (parseFloat($('#online_received').val()) || 0) + (parseFloat($('#online_received_readonly').val()) || 0);
+
                 const billId = document.getElementById('bill_id').value;
                 let url = "{% url 'generate_bill' %}";
                 let method = 'POST';
@@ -1128,10 +1151,17 @@
 
                         // Populate payment details
                         $('#payment_method').val(bill.payment_method).trigger('change');
-                        $('#cash_received').val(parseFloat(bill.amount_paid).toFixed(2));
-                        if (bill.payment_method === 'online' || bill.payment_method === 'both') {
-                            $('#online_received').val(parseFloat(bill.online_amount_paid).toFixed(2));
-                        }
+                        // Set the received amounts based on the bill data
+                        $('#payment_method').val(bill.payment_method).trigger('change');
+                        // Set the received amounts based on the bill data
+                        // $('#cash_received').val(parseFloat(bill.amount_paid).toFixed(2));
+                        // $('#online_received').val(parseFloat(bill.online_amount_paid).toFixed(2));
+
+                        $('#cash_received_readonly').val(parseFloat(bill.amount_paid).toFixed(2));
+                        $('#online_received_readonly').val(parseFloat(bill.online_amount_paid).toFixed(2));
+
+                        // Show the received payment div
+                        $('#received_payment_div').show();
 
                         // Populate bill items
                         billItems = bill.items.map(item => ({
@@ -1149,6 +1179,10 @@
                         renderBillItems();
                         calculateGrandTotal(); // Recalculate after populating items
 
+                        // $('#cash_received').val(parseFloat(0).toFixed(2));
+                        // $('#online_received').val(parseFloat(0).toFixed(2));
+
+
                                 // Show/hide Mark as Closed button and disable Update Bill button based on bill status
                                 if (bill.status === 'open' || bill.status === 'advance') {
                                     $('#markBillClosedBtn').show();
@@ -1156,6 +1190,8 @@
                                     $('#generateBillSubmitBtn').prop('disabled', false);
                                 } else if (bill.status === 'shipped_pending') {
                                     $('#markBillClosedBtn').show();
+                                    $('#generateBillSubmitBtn').hide();
+
                                     $('#markShippedPendingBtn').hide(); // Hide if already shipped_pending
                                     $('#generateBillSubmitBtn').prop('disabled', false);
                                 }
@@ -1372,8 +1408,8 @@
                         rent_customer_amount: parseFloat($('#rent_customer_amount').val()) || 0,
                         rent_company_amount: parseFloat($('#rent_company_amount').val()) || 0,
                         payment_method: $('#payment_method').val(),
-                        cash_received: parseFloat($('#cash_received').val()) || 0,
-                        online_received: parseFloat($('#online_received').val()) || 0,
+                        cash_received: (parseFloat($('#cash_received').val()) || 0) || (parseFloat($('#cash_received_readonly').val()) || 0),
+                        online_received: (parseFloat($('#online_received').val()) || 0) || (parseFloat($('#online_received_readonly').val()) || 0),
                     };
 
                     fetch(`/billing/mark_bill_shipped_pending/${billId}/`, {

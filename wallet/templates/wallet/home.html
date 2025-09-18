@@ -262,9 +262,9 @@
                                 <td>PKR {{ entry.online_received|floatformat:"2"|intcomma }}</td>
                                 <td>PKR {{ entry.balance_after_transaction|floatformat:"2"|intcomma }}</td>
                                 <td class="action-buttons">
-                                    <a href="#" class="btn btn-sm btn-primary action-btn edit-entry" data-id="{{ entry.id }}" title="Edit">
+                                    <!-- <a href="#" class="btn btn-sm btn-primary action-btn edit-entry" data-id="{{ entry.id }}" title="Edit">
                                         <i class="fas fa-edit"></i>
-                                    </a>
+                                    </a> -->
                                     <button type="button" class="btn btn-sm btn-danger action-btn delete-entry-btn" data-id="{{ entry.id }}" title="Delete">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
@@ -486,6 +486,7 @@
                         renderEntries(data); // Render updated entries and pagination
                         document.getElementById('current_balance_display').innerText = `PKR ${parseFloat(data.current_balance).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                         alert(data.message); // Show success message
+                        window.location.reload();
                     } else {
                         alert("Error: " + (data.message || "An unknown error occurred."));
                     }
@@ -541,6 +542,7 @@
                             renderEntries(data); // Render updated entries and pagination
                             document.getElementById('current_balance_display').innerText = `PKR ${parseFloat(data.current_balance).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
                             alert(data.message); // Show success message
+                            window.location.reload();
                         } else {
                             alert("Error: " + (data.error || "An unknown error occurred."));
                         }

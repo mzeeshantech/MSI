@@ -107,7 +107,7 @@ def mark_bill_closed(request, bill_id):
             rent_customer_amount = Decimal(data.get('rent_customer_amount', 0))
             rent_company_amount = Decimal(data.get('rent_company_amount', 0))
 
-            with transaction.atomic():
+            with transaction.atomic():                
                 # Deduct stock if not already deducted (i.e., if status was 'open' or 'advance')
                 if bill.status not in ['paid_later', 'shipped_pending']:
                     for bill_item in bill.items.all():
@@ -121,10 +121,11 @@ def mark_bill_closed(request, bill_id):
                 # Calculate additional payment received
                 previous_total_paid = bill.amount_paid + bill.online_amount_paid
                 current_total_paid = cash_received + online_received
-                additional_payment = current_total_paid - previous_total_paid
+                # additional_payment = current_total_paid - previous_total_paid
+                additional_payment = current_total_paid
 
-                bill.amount_paid = cash_received
-                bill.online_amount_paid = online_received
+                bill.amount_paid = bill.amount_paid + cash_received
+                bill.online_amount_paid = bill.online_amount_paid + online_received
                 bill.payment_method = payment_method
                 bill.rent_amount = rent_amount
                 bill.rent_payer = rent_payer
@@ -187,7 +188,8 @@ def mark_bill_shipped_pending(request, bill_id):
                 # Calculate additional payment received
                 previous_total_paid = bill.amount_paid + bill.online_amount_paid
                 current_total_paid = cash_received + online_received
-                additional_payment = current_total_paid - previous_total_paid
+                # additional_payment = current_total_paid - previous_total_paid
+                additional_payment = current_total_paid
 
                 bill.amount_paid = cash_received
                 bill.online_amount_paid = online_received
@@ -330,6 +332,7 @@ def billing_home(request):
                 'created_at': bill.created_at.isoformat(),
                 'total_amount': float(bill.total_amount),
                 'amount_paid': float(bill.amount_paid),
+                'online_amount_paid': float(bill.online_amount_paid),
                 'rent_amount': float(bill.rent_amount),
                 'status': bill.status,
                 'get_status_display': bill.get_status_display(),
@@ -888,7 +891,7 @@ def generate_bill(request):
                         inventory_item.save()
 
                 # Add initial payment to wallet if not an advance booking or paid later
-                if not is_booking and status != 'paid_later' and total_amount_paid > 0:
+                if not is_booking and status != 'open' and status != 'paid_later' and total_amount_paid > 0:
                     new_balance = update_wallet_balance(total_amount_paid, False)
                     WalletEntry.objects.create(
                         transaction_type="sale",

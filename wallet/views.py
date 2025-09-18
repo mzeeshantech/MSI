@@ -157,7 +157,7 @@ def delete_wallet_entry(request, pk):
             entry = WalletEntry.objects.get(pk=pk)
             with transaction.atomic():
                 # Revert the balance change
-                update_wallet_balance(entry.amount, is_deduction=not (entry.transaction_type in ['sale', 'deposit']))
+                update_wallet_balance(entry.amount, is_deduction= (entry.transaction_type in ['sale', 'deposit']))
                 entry.delete()
 
                 # After deletion, fetch updated data for frontend rendering
