@@ -241,6 +241,9 @@
                             <th><strong><i class="fas fa-tag black-color"></i> Type</strong></th>
                             <th><strong><i class="fas fa-money-bill-wave black-color"></i> Amount</strong></th>
                             <th><strong><i class="fas fa-file-alt black-color"></i> Description</strong></th>
+                            <th><strong><i class="fas fa-money-check-alt black-color"></i> Payment Mode</strong></th>
+                            <th><strong><i class="fas fa-cash-register black-color"></i> Cash Received</strong></th>
+                            <th><strong><i class="fas fa-globe black-color"></i> Online Received</strong></th>
                             <th><strong><i class="fas fa-balance-scale black-color"></i> Balance After</strong></th>
                             <th><strong><i class="fas fa-edit black-color"></i> Action</strong></th>
                         </tr>
@@ -254,6 +257,9 @@
                                     PKR {{ entry.amount|floatformat:"2"|intcomma }}
                                 </td>
                                 <td>{{ entry.description|default:"N/A" }}</td>
+                                <td>{{ entry.get_payment_mode_display }}</td>
+                                <td>PKR {{ entry.cash_received|floatformat:"2"|intcomma }}</td>
+                                <td>PKR {{ entry.online_received|floatformat:"2"|intcomma }}</td>
                                 <td>PKR {{ entry.balance_after_transaction|floatformat:"2"|intcomma }}</td>
                                 <td class="action-buttons">
                                     <a href="#" class="btn btn-sm btn-primary action-btn edit-entry" data-id="{{ entry.id }}" title="Edit">
@@ -417,6 +423,9 @@
                             <td>${entry.transaction_type_display}</td>
                             <td class="${amountClass}">PKR ${parseFloat(entry.amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td>${entry.description || 'N/A'}</td>
+                            <td>${entry.payment_mode_display}</td>
+                            <td>PKR ${parseFloat(entry.cash_received).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td>PKR ${parseFloat(entry.online_received).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td>PKR ${parseFloat(entry.balance_after_transaction).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td class="action-buttons">
                                 <a href="#" class="btn btn-sm btn-primary action-btn edit-entry" data-id="${entry.id}" title="Edit">
@@ -431,7 +440,7 @@
                 });
                 $('.pagination').replaceWith(response.pagination_html);
             } else {
-                tableBody.append('<tr><td colspan="6" class="text-center">No wallet entries found.</td></tr>');
+                tableBody.append('<tr><td colspan="9" class="text-center">No wallet entries found.</td></tr>');
                 $('.pagination').empty();
             }
         }

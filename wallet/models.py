@@ -27,18 +27,28 @@ class WalletEntry(models.Model):
         ('expense', 'Other Expense'),
         ('deposit', 'Deposit'), # For initial funding or manual additions
         ('advance_salary', 'Advance Salary'),
+        ('rent', 'MSI Rent'),
         ('other', 'Other Transaction'),
+    ]
+
+    PAYMENT_MODE_CHOICES = [
+        ('cash', 'Cash'),
+        ('online', 'Online'),
+        ('both', 'Both'),
     ]
     
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPE_CHOICES, default='sale')
+    payment_mode = models.CharField(max_length=10, choices=PAYMENT_MODE_CHOICES, default='cash')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
+    cash_received = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, default=0.00)
+    online_received = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, default=0.00)
     description = models.TextField(blank=True, null=True)
     transaction_date = models.DateField(auto_now_add=True)
     balance_after_transaction = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     bill = models.ForeignKey(Bill, on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
-        return f"{self.transaction_type.capitalize()} - {self.amount} on {self.transaction_date}"
+        return f"{self.transaction_type} - {self.amount} ({self.payment_mode})"
 
     class Meta:
         ordering = ['-transaction_date']

@@ -142,7 +142,10 @@ def mark_bill_closed(request, bill_id):
                         transaction_type="sale",
                         amount=additional_payment,
                         description=f"Remaining payment for Bill {bill.bill_number} (Closed)",
-                        balance_after_transaction=new_balance
+                        balance_after_transaction=new_balance,
+                        payment_mode=payment_method,
+                        cash_received=cash_received,
+                        online_received=online_received
                     )
                 
             return JsonResponse({'success': True, 'message': 'Bill marked as closed successfully!'})
@@ -204,7 +207,10 @@ def mark_bill_shipped_pending(request, bill_id):
                         transaction_type="sale",
                         amount=additional_payment,
                         description=f"Payment for Bill {bill.bill_number} (Shipped/Charges Pending)",
-                        balance_after_transaction=new_balance
+                        balance_after_transaction=new_balance,
+                        payment_mode=payment_method,
+                        cash_received=cash_received,
+                        online_received=online_received
                     )
             
             return JsonResponse({'success': True, 'message': 'Bill marked as Shipped/Charges Pending successfully!'})
@@ -888,7 +894,10 @@ def generate_bill(request):
                         transaction_type="sale",
                         amount=total_amount_paid,
                         description=f"Initial payment for Bill {bill.bill_number}",
-                        balance_after_transaction=new_balance
+                        balance_after_transaction=new_balance,
+                        payment_mode=payment_method,
+                        cash_received=cash_received,
+                        online_received=online_received
                     )
 
             return JsonResponse({'success': True, 'message': 'Bill generated successfully!'})

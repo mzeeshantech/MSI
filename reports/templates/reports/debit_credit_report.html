@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debit/Credit Report - {{ report_date|date:"Y-m-d" }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { text-align: center; color: #333; }
+        h2 { color: #555; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .total { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Debit/Credit Report</h1>
+    <p><strong>Date:</strong> {{ report_date|date:"F j, Y" }}</p>
+
+    <h2>Wallet Entries</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Transaction Type</th>
+                <th>Payment Mode</th>
+                <th>Total Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in debit_credit_data.wallet_entries %}
+            <tr>
+                <td>{{ entry.transaction_type }}</td>
+                <td>{{ entry.payment_mode }}</td>
+                <td>{{ entry.total_amount|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3">No wallet entries for this date.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Expenses</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th>Total Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for expense in debit_credit_data.expenses %}
+            <tr>
+                <td>{{ expense.description }}</td>
+                <td>{{ expense.total_amount|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="2">No expenses for this date.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
