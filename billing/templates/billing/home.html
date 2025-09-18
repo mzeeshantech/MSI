@@ -258,6 +258,10 @@
             color: #dc3545; /* Red for cancelled */
             font-weight: bold;
         }
+        .status-shipped_pending {
+            color: #ffc107; /* Orange for shipped/charges pending */
+            font-weight: bold;
+        }
     </style>
 {% endblock %}
 
@@ -311,8 +315,13 @@
                             <td class="text-success">Rs. {{ bill.total_amount|floatformat:"2"|intcomma }}</td>
                             <td>Rs. {{ bill.rent_amount|floatformat:"2"|intcomma }}</td>
                             <td>Rs. {{ bill.amount_paid|floatformat:"2"|intcomma }}</td>
-                            <td><span class="status-{{ bill.status }}">{{ bill.get_status_display }}</span></td>
-                            <td class="action-buttons">
+                            <td>
+                                <span class="status-{{ bill.status }}">{{ bill.get_status_display }}</span>
+                                {% if bill.status == 'shipped_pending' %}
+                                    <br><small class="text-danger">Remaining: Rs. {{ bill.bill_remaining_amount|floatformat:"2"|intcomma }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="action-buttons" {% if bill.status == 'shipped_pending' %} style="padding-bottom: 24px;" {% endif %}>
                                 <button type="button" class="btn btn-info action-btn view-bill-btn" data-id="{{ bill.id }}" title="View Company PDF">
                                     <i class="fas fa-file-pdf font-10"></i>
                                 </button>
@@ -507,8 +516,8 @@
                                     <input type="number" step="0.01" class="form-control form-control-sm" id="online_received" name="online_received" value="0.00">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="change_due" class="form-label">Change Due</label>
-                                    <input type="number" step="0.01" class="form-control form-control-sm" id="change_due" readonly value="0.00">
+                                    <label for="remaining_charges_display" class="form-label text-danger"><i class="fas fa-money-bill-wave"></i> Remaining Charges</label>
+                                    <input type="number" step="0.01" class="form-control form-control-sm" id="remaining_charges_display" readonly value="0.00">
                                 </div>
                             </div>
                         </div>
@@ -516,6 +525,7 @@
                     </div>
                     <div class="modal-footer bg-light">
                         <button type="submit" class="btn btn-success" id="generateBillSubmitBtn"><i class="fas fa-check"></i> {% if selected_page == 'advance_booking' %}Book Now{% else %}Generate Bill{% endif %}</button>
+                        <button type="button" class="btn btn-warning" id="markShippedPendingBtn" style="display: none;"><i class="fas fa-truck"></i> Mark Shipped/Charges Pending</button>
                         <button type="button" class="btn btn-warning" id="markBillClosedBtn" style="display: none;"><i class="fas fa-lock"></i> Mark as Closed</button>
                         <button type="button" class="btn btn-danger" data-bs-dismiss="modal"><i class="fas fa-times"></i> Cancel</button>
                     </div>
@@ -594,8 +604,8 @@
                 totalPaid = cashReceived + onlineReceived;
             }
 
-            const changeDue = totalPaid - grandTotal;
-            document.getElementById('change_due').value = changeDue.toFixed(2);
+            const remainingCharges = grandTotal - totalPaid;
+            document.getElementById('remaining_charges_display').value = remainingCharges.toFixed(2);
         }
 
         function renderBillItems() {
@@ -940,7 +950,7 @@
             // Recalculate grand total on rent change
             $('#rent_amount, #rent_customer_amount, #rent_company_amount, #rent_payer').on('input change', calculateGrandTotal);
 
-            // Calculate change due on cash received and online received change
+            // Calculate remaining charges on cash received and online received change
             $('#cash_received, #online_received').on('input', calculateChangeDue);
 
             // Toggle rent payer specific inputs
@@ -1068,7 +1078,7 @@
                 $('#payment_method').val('cash').trigger('change'); // Reset and trigger change
                 $('#cash_received').val('0.00');
                 $('#online_received').val('0.00'); // Reset online received
-                $('#change_due').val('0.00');
+                $('#remaining_charges_display').val('0.00'); // Clear remaining charges
                 $('#bill_id').val(''); // Clear bill ID
                 if ("{{ selected_page }}" === "advance_booking") {
                     $('#generateBillModalLabel').html('<i class="fas fa-file-invoice"></i> New Booking');
@@ -1078,6 +1088,7 @@
                     $('#generateBillSubmitBtn').html('<i class="fas fa-check"></i> Generate Bill');
                 }
                 $('#markBillClosedBtn').hide(); // Hide mark as closed button
+                $('#markShippedPendingBtn').hide(); // Hide mark shipped pending button
             });
 
             // Edit Bill functionality
@@ -1141,15 +1152,22 @@
                                 // Show/hide Mark as Closed button and disable Update Bill button based on bill status
                                 if (bill.status === 'open' || bill.status === 'advance') {
                                     $('#markBillClosedBtn').show();
+                                    $('#markShippedPendingBtn').show();
                                     $('#generateBillSubmitBtn').prop('disabled', false);
-                                } else {
-                            $('#markBillClosedBtn').hide();
-                            $('#generateBillSubmitBtn').prop('disabled', true); // Disable update button if bill is closed or cancelled
-                        }
-
-                        // Open the modal
-                        const generateBillModal = new bootstrap.Modal(document.getElementById('generateBillModal'));
-                        generateBillModal.show();
+                                } else if (bill.status === 'shipped_pending') {
+                                    $('#markBillClosedBtn').show();
+                                    $('#markShippedPendingBtn').hide(); // Hide if already shipped_pending
+                                    $('#generateBillSubmitBtn').prop('disabled', false);
+                                }
+                                else {
+                                    $('#markBillClosedBtn').hide();
+                                    $('#markShippedPendingBtn').hide();
+                                    $('#generateBillSubmitBtn').prop('disabled', true); // Disable update button if bill is closed or cancelled
+                                }
+                                
+                                // Open the modal
+                                const generateBillModal = new bootstrap.Modal(document.getElementById('generateBillModal'));
+                                generateBillModal.show();
 
                     } else {
                         alert("Error fetching bill details: " + data.message);
@@ -1159,56 +1177,6 @@
                     console.error('Error fetching bill details:', err);
                     alert('An error occurred while fetching bill details.');
                 });
-            });
-
-            // Mark Bill as Closed functionality
-            $('#markBillClosedBtn').on('click', function() {
-                const billId = $('#bill_id').val();
-                const changeDue = parseFloat($('#change_due').val());
-                if (changeDue > 0) {
-                    alert('Received payment cannot be more than Grand total.');
-                    return;
-                }
-                if (changeDue < -300){
-                    alert("Change difference can't be more then Rs:300");
-                    return;
-                }
-
-                if (confirm('Are you sure you want to mark this bill as closed? This action cannot be undone.')) {
-                    const paymentData = {
-                        rent_amount: parseFloat($('#rent_amount').val()) || 0,
-                        rent_payer: $('#rent_payer').val(),
-                        rent_customer_amount: parseFloat($('#rent_customer_amount').val()) || 0,
-                        rent_company_amount: parseFloat($('#rent_company_amount').val()) || 0,
-                        payment_method: $('#payment_method').val(),
-                        cash_received: parseFloat($('#cash_received').val()) || 0,
-                        online_received: parseFloat($('#online_received').val()) || 0,
-                    };
-
-                    fetch(`/billing/mark_bill_closed/${billId}/`, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': csrftoken,
-                            'Content-Type': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: JSON.stringify(paymentData)
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            const generateBillModal = bootstrap.Modal.getInstance(document.getElementById('generateBillModal'));
-                            generateBillModal.hide();
-                            location.reload();
-                        } else {
-                            alert("Error: " + data.message);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('An error occurred while marking the bill as closed.');
-                    });
-                }
             });
 
             // Bulk Delete functionality
@@ -1285,7 +1253,10 @@
                             <td class="text-success">Rs. ${parseFloat(bill.total_amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td>Rs. ${parseFloat(bill.rent_amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td class="text-success">Rs. ${parseFloat(bill.amount_paid).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                            <td><span class="status-${bill.status}">${bill.get_status_display}</span></td>
+                            <td>
+                                <span class="status-${bill.status}">${bill.get_status_display}</span>
+                                ${bill.status === 'shipped_pending' ? `<br><small class="text-danger">Remaining: Rs. ${parseFloat(bill.bill_remaining_amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</small>` : ''}
+                            </td>
                             <td class="action-buttons">
                                 <button type="button" class="btn btn-info action-btn view-bill-btn" data-id="${bill.id}" title="View Company PDF">
                                     <i class="fas fa-file-pdf font-10"></i>
@@ -1299,6 +1270,10 @@
                                 <button type="button" class="btn btn-danger action-btn delete-bill-btn" data-id="${bill.id}" title="Delete">
                                     <i class="fas fa-trash-alt font-10"></i>
                                 </button>
+                                ${bill.status === 'open' || bill.status === 'advance' || bill.status === 'shipped_pending' ? `
+                                <button type="button" class="btn btn-warning action-btn mark-shipped-pending-btn" data-id="${bill.id}" title="Mark Shipped/Charges Pending">
+                                    <i class="fas fa-truck font-10"></i>
+                                </button>` : ''}
                             </td>
                         </tr>
                     `);
@@ -1387,54 +1362,124 @@
                 window.location.href = "{% url 'export_bills_excel' %}";
             });
 
+            // Mark Bill as Shipped/Charges Pending functionality (from modal)
+            $('#markShippedPendingBtn').on('click', function() {
+                const billId = $('#bill_id').val();
+                if (confirm('Are you sure you want to mark this bill as Shipped/Charges Pending?')) {
+                    const paymentData = {
+                        rent_amount: parseFloat($('#rent_amount').val()) || 0,
+                        rent_payer: $('#rent_payer').val(),
+                        rent_customer_amount: parseFloat($('#rent_customer_amount').val()) || 0,
+                        rent_company_amount: parseFloat($('#rent_company_amount').val()) || 0,
+                        payment_method: $('#payment_method').val(),
+                        cash_received: parseFloat($('#cash_received').val()) || 0,
+                        online_received: parseFloat($('#online_received').val()) || 0,
+                    };
+
+                    fetch(`/billing/mark_bill_shipped_pending/${billId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrftoken,
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify(paymentData)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const generateBillModal = bootstrap.Modal.getInstance(document.getElementById('generateBillModal'));
+                            generateBillModal.hide();
+                            location.reload();
+                        } else {
+                            alert("Error: " + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while marking the bill as Shipped/Charges Pending.');
+                    });
+                }
+            });
+
+            // Mark Bill as Closed functionality
+            $('#markBillClosedBtn').on('click', function() {
+                const billId = $('#bill_id').val();
+                const remainingCharges = parseFloat($('#remaining_charges_display').val());
+                if (remainingCharges < 0) {
+                    alert('Received payment cannot be more than Grand total.');
+                    return;
+                }
+                if (remainingCharges > 300){
+                    alert("Remaining charges can't be more then Rs:300");
+                    return;
+                }
+
+                if (confirm('Are you sure you want to mark this bill as closed? This action cannot be undone.')) {
+                    const paymentData = {
+                        rent_amount: parseFloat($('#rent_amount').val()) || 0,
+                        rent_payer: $('#rent_payer').val(),
+                        rent_customer_amount: parseFloat($('#rent_customer_amount').val()) || 0,
+                        rent_company_amount: parseFloat($('#rent_company_amount').val()) || 0,
+                        payment_method: $('#payment_method').val(),
+                        cash_received: parseFloat($('#cash_received').val()) || 0,
+                        online_received: parseFloat($('#online_received').val()) || 0,
+                    };
+
+                    fetch(`/billing/mark_bill_closed/${billId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrftoken,
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify(paymentData)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const generateBillModal = bootstrap.Modal.getInstance(document.getElementById('generateBillModal'));
+                            generateBillModal.hide();
+                            location.reload();
+                        } else {
+                            alert("Error: " + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while marking the bill as closed.');
+                    });
+                }
+            });
+
             // Initialize Date Range Picker
             $('#dateRangePicker').daterangepicker({
+                opens: 'left',
                 autoUpdateInput: false,
                 locale: {
                     cancelLabel: 'Clear'
                 }
+            }, function(start, end, label) {
+                console.log("A new date selection was made: " + start.format('YYYY-MM-DD') + ' to ' + end.format('YYYY-MM-DD'));
             });
 
             $('#dateRangePicker').on('apply.daterangepicker', function(ev, picker) {
                 $(this).val(picker.startDate.format('DD/MM/YYYY') + ' - ' + picker.endDate.format('DD/MM/YYYY'));
-                applyDateFilter();
+                const startDate = picker.startDate.format('YYYY-MM-DD');
+                const endDate = picker.endDate.format('YYYY-MM-DD');
+                
+                const baseUrl = "{% if selected_page == 'advance_booking' %}{% url 'advance_booking' %}{% else %}{% url 'billing_home' %}{% endif %}";
+                const url = new URL(baseUrl, window.location.origin);
+                url.searchParams.append('start_date', startDate);
+                url.searchParams.append('end_date', endDate);
+                fetchBillsData(url);
             });
 
             $('#dateRangePicker').on('cancel.daterangepicker', function(ev, picker) {
                 $(this).val('');
-                applyDateFilter();
-            });
-
-            function applyDateFilter() {
-                const dateRange = $('#dateRangePicker').val();
-                let startDate = '';
-                let endDate = '';
-
-                if (dateRange) {
-                    const dates = dateRange.split(' - ');
-                    if (dates.length === 2) {
-                        startDate = moment(dates[0], 'DD/MM/YYYY').format('YYYY-MM-DD');
-                        endDate = moment(dates[1], 'DD/MM/YYYY').format('YYYY-MM-DD');
-                    }
-                }
-                
-                const searchTerm = $('#globalSearch').val();
-
                 const baseUrl = "{% if selected_page == 'advance_booking' %}{% url 'advance_booking' %}{% else %}{% url 'billing_home' %}{% endif %}";
-                const url = new URL(baseUrl, window.location.origin);
-
-                if (searchTerm) {
-                    url.searchParams.append('search_term', searchTerm);
-                }
-                if (startDate) {
-                    url.searchParams.append('start_date', startDate);
-                }
-                if (endDate) {
-                    url.searchParams.append('end_date', endDate);
-                }
-
-                fetchBillsData(url);
-            }
+                fetchBillsData(baseUrl);
+            });
         });
     </script>
 {% endblock %}

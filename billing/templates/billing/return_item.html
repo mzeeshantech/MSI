@@ -8,6 +8,7 @@
     <script src="{% static 'js/jquery-3.6.0.min.js' %}"></script>
     <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta2/dist/css/bootstrap-select.min.css">
     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
 
     <style>
@@ -291,6 +292,7 @@
                         <th><strong><i class="fas fa-user black-color font-10"></i> Customer Name</strong></th>
                         <th><strong><i class="fas fa-tag black-color font-10"></i> Item Name</strong></th>
                         <th><strong><i class="fas fa-balance-scale black-color font-10"></i> Quantity Returned</strong></th>
+                        <th><strong><i class="fas fa-money-bill-alt black-color font-10"></i> Return Amount</strong></th>
                         <th><strong><i class="fas fa-question-circle black-color font-10"></i> Reason</strong></th>
                         <th><strong><i class="fas fa-calendar-alt black-color font-10"></i> Return Date</strong></th>
                         <th><strong><i class="fas fa-cogs black-color font-10"></i> Action</strong></th>
@@ -304,6 +306,7 @@
                             <td>{{ return_item.customer_name }}</td>
                             <td>{{ return_item.item_name }}</td>
                             <td>{{ return_item.quantity_returned|floatformat:"2"|intcomma }}</td>
+                            <td>{{ return_item.amount_returned|floatformat:"2"|intcomma }}</td>
                             <td>{{ return_item.reason }}</td>
                             <td>{{ return_item.return_date|date:"d M, Y" }}</td>
                             <td class="action-buttons">
@@ -370,7 +373,7 @@
                     <input type="hidden" id="returnId">
                     <div class="mb-3">
                         <label for="modalBillNumber" class="form-label">Bill Number</label>
-                        <select class="form-control" id="modalBillNumber" required>
+                        <select class="form-control" id="modalBillNumber" data-live-search="true" required>
                             <option value="">Select a Bill Number</option>
                         </select>
                     </div>
@@ -401,6 +404,7 @@
     <script src="{% static 'js/bootstrap.bundle.min.js' %}" crossorigin="anonymous"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta2/dist/js/bootstrap-select.min.js"></script>
     <script>
         function getCookie(name) {
             let cookieValue = null;
@@ -455,6 +459,7 @@
                                 <td>${return_item.customer_name}</td>
                                 <td>${return_item.item_name}</td>
                                 <td>${parseFloat(return_item.quantity_returned).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                <td>${parseFloat(return_item.amount_returned).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                                 <td>${return_item.reason}</td>
                                 <td>${new Date(return_item.return_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
                                 <td class="action-buttons">
@@ -652,7 +657,7 @@
             console.log('Bills data from context:', bills); // Debugging line
 
             function populateBillDropdown(selectedBillIdToSet = null) {
-                modalBillNumberSelect.innerHTML = '<option value="">Select a Bill Number</option>';
+                $(modalBillNumberSelect).empty().append('<option value="">Select a Bill Number</option>');
                 bills.forEach(bill => {
                     const option = document.createElement('option');
                     option.value = bill.id;
@@ -660,16 +665,17 @@
                     modalBillNumberSelect.appendChild(option);
                 });
                 if (selectedBillIdToSet) {
-                    modalBillNumberSelect.value = selectedBillIdToSet;
+                    $(modalBillNumberSelect).val(selectedBillIdToSet);
                     selectedBillId = selectedBillIdToSet;
                 }
+                $(modalBillNumberSelect).selectpicker('refresh');
             }
 
             // Event listener for when a bill number is selected from the dropdown
-            modalBillNumberSelect.addEventListener('change', async function() {
-                const selectedOption = this.options[this.selectedIndex];
-                if (selectedOption && selectedOption.value) {
-                    selectedBillId = selectedOption.value; // The value of the option is the bill ID
+            $(modalBillNumberSelect).on('changed.bs.select', async function() {
+                const selectedValue = $(this).val();
+                if (selectedValue) {
+                    selectedBillId = selectedValue; // The value of the option is the bill ID
                     await fetchBillItemsForModal(selectedBillId);
                     modalBillItemSelect.disabled = false;
                     modalQuantityReturnedInput.disabled = true; // Disable until item is selected

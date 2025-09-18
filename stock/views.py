@@ -139,6 +139,7 @@ def stock_items(request):
         category = get_object_or_404(InventoryCategory, pk=category_id) if category_id else None
         sale_price = request.POST.get('sale_price', 0)
         sale_price = sale_price if sale_price != "" else 0
+        print(request.POST)
         item_data = {
             'name': request.POST.get('name'),
             'sku': request.POST.get('sku'),

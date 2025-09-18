@@ -25,6 +25,7 @@ class Bill(models.Model):
         ('closed', 'Closed'),
         ('advance', 'Advance'),
         ('paid_later', 'Paid Later'),
+        ('shipped_pending', 'Shipped/Charges Pending'),
     ]
     RENT_PAYER_CHOICES = [
         ('customer', 'Customer'),
@@ -44,7 +45,8 @@ class Bill(models.Model):
     rent_company_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     payment_method = models.CharField(max_length=10, choices=PAYMENT_METHOD_CHOICES, default='cash')
     online_amount_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    status = models.CharField(max_length=10, choices=BILL_STATUS_CHOICES, default='open')
+    status = models.CharField(max_length=20, choices=BILL_STATUS_CHOICES, default='open')
+    remaining_charges = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
     def __str__(self):
         return self.bill_number if self.bill_number else f"Bill #{self.id}"
@@ -54,6 +56,10 @@ class Bill(models.Model):
         for item in self.items.all():
             total += item.get_line_total()
         return total
+
+    @property
+    def bill_remaining_amount(self):
+        return self.total_amount - (self.amount_paid + self.online_amount_paid)
 
     def get_change_due(self):
         total_paid = self.amount_paid + self.online_amount_paid
@@ -91,9 +97,10 @@ class BillItem(models.Model):
 
 class Return(models.Model):
     bill_item = models.ForeignKey(BillItem, on_delete=models.CASCADE)
-    quantity_returned = models.IntegerField()
+    quantity_returned = models.DecimalField(max_digits=10, decimal_places=2) # Changed to DecimalField
+    amount_returned = models.DecimalField(max_digits=12, decimal_places=2, default=0) # New field
     created_at = models.DateTimeField(auto_now_add=True)
     reason = models.CharField(max_length=255, default='not used')
 
     def __str__(self):
-        return f"Return: Bill {self.bill_item.bill.bill_number} - {self.bill_item.item.name} x {self.quantity_returned}"
+        return f"Return: Bill {self.bill_item.bill.bill_number} - {self.bill_item.item.name} x {self.quantity_returned} ({self.amount_returned})"

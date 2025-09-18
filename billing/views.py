@@ -15,6 +15,8 @@ from django.template.loader import render_to_string
 from stock.models import InventoryItem, InventoryCategory
 from .models import Bill, BillItem, Customer, Return
 from datetime import datetime
+from django.db.models import Case, When, Value, IntegerField
+from wallet.models import WalletEntry, Wallet
 
 @csrf_exempt
 def bulk_delete_bills(request):
@@ -58,6 +60,9 @@ def generate_bill_pdf(request, bill_id):
     
     pdf_type = request.GET.get('type', 'default')
     if pdf_type == 'customer':
+        if bill.rent_payer == "both" or bill.rent_payer == "company":
+            bill.rent_amount = bill.rent_amount - bill.rent_company_amount
+            bill.total_amount = bill.total_amount - bill.rent_company_amount
         template_name = 'billing/customer_bill_detail.html'
         filename = f'customer_bill_{bill.bill_number}.pdf'
     else:
@@ -73,6 +78,17 @@ def generate_bill_pdf(request, bill_id):
     response.write(pdf_file)
     
     return response
+
+
+def update_wallet_balance(amount, is_deduction=True):
+    wallet = Wallet.objects.get_or_create(pk=1)[0]
+    amount_decimal = Decimal(str(amount)) # Convert float to Decimal
+    if is_deduction:
+        wallet.current_balance -= amount_decimal
+    else:
+        wallet.current_balance += amount_decimal
+    wallet.save()
+    return wallet.current_balance
 
 @csrf_exempt
 def mark_bill_closed(request, bill_id):
@@ -91,26 +107,107 @@ def mark_bill_closed(request, bill_id):
             rent_customer_amount = Decimal(data.get('rent_customer_amount', 0))
             rent_company_amount = Decimal(data.get('rent_company_amount', 0))
 
-            # Deduct stock for each item in the bill
-            if bill.status != 'paid_later':
-                for bill_item in bill.items.all():
-                    inventory_item = bill_item.item
-                    if inventory_item.total_stock_quantity < bill_item.quantity:
-                        return JsonResponse({'success': False, 'message': f'Not enough stock for {inventory_item.name} to close the bill. Available: {inventory_item.total_stock_quantity}'}, status=400)
-                    inventory_item.total_stock_quantity -= bill_item.quantity
-                    inventory_item.save()
-            
-            bill.amount_paid = cash_received
-            bill.online_amount_paid = online_received
-            bill.payment_method = payment_method
-            bill.rent_amount = rent_amount
-            bill.rent_payer = rent_payer
-            bill.rent_customer_amount = rent_customer_amount
-            bill.rent_company_amount = rent_company_amount
-            bill.closed_at = datetime.now()
-            bill.status = 'closed'
-            bill.save()
+            with transaction.atomic():
+                # Deduct stock if not already deducted (i.e., if status was 'open' or 'advance')
+                if bill.status not in ['paid_later', 'shipped_pending']:
+                    for bill_item in bill.items.all():
+                        inventory_item = bill_item.item
+                        if inventory_item.total_stock_quantity < bill_item.quantity:
+                            transaction.set_rollback(True)
+                            return JsonResponse({'success': False, 'message': f'Not enough stock for {inventory_item.name} to close the bill. Available: {inventory_item.total_stock_quantity}'}, status=400)
+                        inventory_item.total_stock_quantity -= bill_item.quantity
+                        inventory_item.save()
+                
+                # Calculate additional payment received
+                previous_total_paid = bill.amount_paid + bill.online_amount_paid
+                current_total_paid = cash_received + online_received
+                additional_payment = current_total_paid - previous_total_paid
+
+                bill.amount_paid = cash_received
+                bill.online_amount_paid = online_received
+                bill.payment_method = payment_method
+                bill.rent_amount = rent_amount
+                bill.rent_payer = rent_payer
+                bill.rent_customer_amount = rent_customer_amount
+                bill.rent_company_amount = rent_company_amount
+                bill.closed_at = datetime.now()
+                bill.status = 'closed'
+                bill.remaining_charges = Decimal(0) # Set remaining charges to 0
+                bill.save()
+
+                # Add additional payment to wallet
+                if additional_payment > 0:
+                    new_balance = update_wallet_balance(additional_payment, False)
+                    WalletEntry.objects.create(
+                        transaction_type="sale",
+                        amount=additional_payment,
+                        description=f"Remaining payment for Bill {bill.bill_number} (Closed)",
+                        balance_after_transaction=new_balance
+                    )
+                
             return JsonResponse({'success': True, 'message': 'Bill marked as closed successfully!'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+            return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+@csrf_exempt
+def mark_bill_shipped_pending(request, bill_id):
+    if request.method == 'POST':
+        try:
+            bill = get_object_or_404(Bill, id=bill_id)
+            if bill.status == 'shipped_pending':
+                return JsonResponse({'success': False, 'message': 'Bill is already marked as Shipped/Charges Pending.'}, status=400)
+            
+            if bill.status == 'closed':
+                return JsonResponse({'success': False, 'message': 'Cannot mark a closed bill as Shipped/Charges Pending.'}, status=400)
+
+            data = json.loads(request.body)
+            cash_received = Decimal(data.get('cash_received', 0))
+            online_received = Decimal(data.get('online_received', 0))
+            payment_method = data.get('payment_method', 'cash')
+            rent_amount = Decimal(data.get('rent_amount', 0))
+            rent_payer = data.get('rent_payer', 'customer')
+            rent_customer_amount = Decimal(data.get('rent_customer_amount', 0))
+            rent_company_amount = Decimal(data.get('rent_company_amount', 0))
+
+            with transaction.atomic():
+                # Deduct stock if not already deducted (i.e., if status was 'open' or 'advance')
+                if bill.status not in ['paid_later', 'shipped_pending']:
+                    for bill_item in bill.items.all():
+                        inventory_item = bill_item.item
+                        if inventory_item.total_stock_quantity < bill_item.quantity:
+                            transaction.set_rollback(True)
+                            return JsonResponse({'success': False, 'message': f'Not enough stock for {inventory_item.name}. Available: {inventory_item.total_stock_quantity}'}, status=400)
+                        inventory_item.total_stock_quantity -= bill_item.quantity
+                        inventory_item.save()
+                
+                # Calculate additional payment received
+                previous_total_paid = bill.amount_paid + bill.online_amount_paid
+                current_total_paid = cash_received + online_received
+                additional_payment = current_total_paid - previous_total_paid
+
+                bill.amount_paid = cash_received
+                bill.online_amount_paid = online_received
+                bill.payment_method = payment_method
+                bill.rent_amount = rent_amount
+                bill.rent_payer = rent_payer
+                bill.rent_customer_amount = rent_customer_amount
+                bill.rent_company_amount = rent_company_amount
+                bill.status = 'shipped_pending'
+                bill.remaining_charges = bill.total_amount - (bill.amount_paid + bill.online_amount_paid)
+                bill.save()
+
+                # Add additional payment to wallet
+                if additional_payment > 0:
+                    new_balance = update_wallet_balance(additional_payment, False)
+                    WalletEntry.objects.create(
+                        transaction_type="sale",
+                        amount=additional_payment,
+                        description=f"Payment for Bill {bill.bill_number} (Shipped/Charges Pending)",
+                        balance_after_transaction=new_balance
+                    )
+            
+            return JsonResponse({'success': True, 'message': 'Bill marked as Shipped/Charges Pending successfully!'})
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)}, status=500)
     return JsonResponse({'error': 'Invalid request method'}, status=400)
@@ -176,7 +273,14 @@ def export_bills_excel(request):
     return response
 
 def billing_home(request):
-    bills_list = Bill.objects.all().filter(status__in=['open', 'closed']).order_by('-status')
+    bills_list = Bill.objects.filter(status__in=['open', 'closed', 'shipped_pending']).annotate(
+        status_order=Case(
+            When(status='open', then=Value(0)),
+            When(status='shipped_pending', then=Value(1)),
+            When(status='closed', then=Value(2)),
+            output_field=IntegerField(),
+        )
+    ).order_by('status_order', '-id')
 
     search_term = request.GET.get('search_term')
     start_date_str = request.GET.get('start_date')
@@ -208,12 +312,6 @@ def billing_home(request):
         # If page is out of range (e.g. 9999), deliver last page of results.
         bills = paginator.page(paginator.num_pages)
     
-    context = {
-        'selected_page': 'billing',
-        'bills': bills,
-        'categories' : InventoryCategory.objects.all(),
-        'page_obj': bills, # Pass page_obj to the context for initial load
-    }
 
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         # If it's an AJAX request, return JSON response for table and pagination
@@ -229,6 +327,7 @@ def billing_home(request):
                 'rent_amount': float(bill.rent_amount),
                 'status': bill.status,
                 'get_status_display': bill.get_status_display(),
+                'bill_remaining_amount': float(bill.bill_remaining_amount) # Use the property
             })
         
         pagination_html = render(request, 'stock/pagination.html', {'page_obj': bills, 'request': request}).content.decode('utf-8')
@@ -237,6 +336,17 @@ def billing_home(request):
             'bills': bills_data,
             'pagination_html': pagination_html
         })
+    else:
+        for bill in bills:
+            # The property is already available on the model instance, no need to re-calculate
+            pass 
+
+    context = {
+        'selected_page': 'billing',
+        'bills': bills,
+        'categories' : InventoryCategory.objects.all(),
+        'page_obj': bills, # Pass page_obj to the context for initial load
+    }
 
     return render(request, 'billing/home.html', context)
 
@@ -333,10 +443,20 @@ def return_item_view(request):
                     print('first if')
                     return JsonResponse({'success': False, 'message': 'Invalid quantity for return.'}, status=400)
 
+                # Calculate the amount to be removed from the wallet
+                item_price_after_discount = bill_item.price_per_unit
+                if bill_item.discount_type == 'percentage':
+                    item_price_after_discount -= (bill_item.price_per_unit * (bill_item.discount_amount / 100))
+                elif bill_item.discount_type == 'fixed':
+                    item_price_after_discount -= bill_item.discount_amount
+                
+                amount_to_return = quantity_returned * item_price_after_discount
+
                 # Create a new Return record
                 Return.objects.create(
                     bill_item=bill_item,
                     quantity_returned=quantity_returned,
+                    amount_returned=amount_to_return, # Save the calculated amount
                     reason=reason
                 )
 
@@ -347,9 +467,25 @@ def return_item_view(request):
 
                 # Optionally, update the BillItem's quantity if partial return
                 bill_item.quantity -= quantity_returned
-                bill_item.save()
+                bill_item.save() # This line was missing in the previous change.
 
-            print('success')
+                # Calculate the amount to be removed from the wallet
+                item_price_after_discount = bill_item.price_per_unit
+                if bill_item.discount_type == 'percentage':
+                    item_price_after_discount -= (bill_item.price_per_unit * (bill_item.discount_amount / 100))
+                elif bill_item.discount_type == 'fixed':
+                    item_price_after_discount -= bill_item.discount_amount
+                
+                amount_to_remove = quantity_returned * item_price_after_discount
+
+                new_balance = update_wallet_balance(amount_to_remove, True)
+                WalletEntry.objects.create(
+                    transaction_type="return",
+                    amount=amount_to_remove,
+                    description=f"Return for Bill {bill.bill_number} - Item: {inventory_item.name}",
+                    balance_after_transaction=new_balance
+                )
+
             return JsonResponse({'success': True, 'message': 'Item returned successfully!'})
         except json.JSONDecodeError:
             print('first error')
@@ -399,6 +535,7 @@ def return_item_view(request):
             'customer_name': ret.bill_item.bill.customer.name,
             'item_name': ret.bill_item.item.name,
             'quantity_returned': float(ret.quantity_returned),
+            'amount_returned': float(ret.amount_returned), # Include amount_returned
             'reason': ret.reason,
             'return_date': ret.created_at.isoformat(),
         })
@@ -463,6 +600,7 @@ def return_detail_api(request, return_id):
                     'bill_number': return_obj.bill_item.bill.bill_number,
                     'item_name': return_obj.bill_item.item.name,
                     'quantity_returned': float(return_obj.quantity_returned),
+                    'amount_returned': float(return_obj.amount_returned), # Include amount_returned
                     'reason': return_obj.reason,
                     'return_date': return_obj.created_at.isoformat(),
                 }
@@ -700,16 +838,17 @@ def generate_bill(request):
                 bill = Bill.objects.create(
                     customer=customer,
                     total_amount=final_total,
-                    amount_paid=cash_received, # This is specifically cash received
-                    online_amount_paid=online_received, # New field for online received
+                    amount_paid=cash_received,
+                    online_amount_paid=online_received,
                     rent_amount=rent_amount,
                     rent_payer=rent_payer,
-                    rent_customer_amount=rent_customer_amount, # New field
-                    rent_company_amount=rent_company_amount, # New field
+                    rent_customer_amount=rent_customer_amount,
+                    rent_company_amount=rent_company_amount,
                     payment_method=payment_method,
-                    status='advance' if is_booking else status
+                    status='advance' if is_booking else status,
+                    remaining_charges=final_total - total_amount_paid # Set remaining charges
                 )
-                bill.bill_number = f"BILL-{bill.id:06d}" # Generate bill number based on ID
+                bill.bill_number = f"BILL-{bill.id:06d}"
                 bill.save()
 
                 for item_data in bill_items_data:
@@ -733,9 +872,24 @@ def generate_bill(request):
                         discount_type=item_discount_type,
                         discount_amount=item_discount_amount
                     )
-                    if status == 'paid_later':
+                    
+                    # Deduct stock and add to wallet based on bill status at creation
+                    if not is_booking and status != 'paid_later': # For 'open' bills
                         inventory_item.total_stock_quantity -= quantity
                         inventory_item.save()
+                    elif status == 'paid_later': # For 'paid_later' bills, deduct stock immediately
+                        inventory_item.total_stock_quantity -= quantity
+                        inventory_item.save()
+
+                # Add initial payment to wallet if not an advance booking or paid later
+                if not is_booking and status != 'paid_later' and total_amount_paid > 0:
+                    new_balance = update_wallet_balance(total_amount_paid, False)
+                    WalletEntry.objects.create(
+                        transaction_type="sale",
+                        amount=total_amount_paid,
+                        description=f"Initial payment for Bill {bill.bill_number}",
+                        balance_after_transaction=new_balance
+                    )
 
             return JsonResponse({'success': True, 'message': 'Bill generated successfully!'})
         except json.JSONDecodeError:
@@ -781,6 +935,7 @@ def get_bill_details(request, bill_id):
                 'amount_paid': float(bill.amount_paid),
                 'online_amount_paid': float(bill.online_amount_paid),
                 'status': bill.status, # Include status
+                'remaining_charges': float(bill.remaining_charges), # Include remaining_charges
                 'items': bill_items_data,
             }
             return JsonResponse({'success': True, 'bill': bill_data})
@@ -864,6 +1019,15 @@ def update_bill(request, bill_id):
                 elif rent_payer == 'both':
                     final_total += rent_customer_amount + rent_company_amount
 
+                # Determine total amount paid based on payment method
+                total_amount_paid = Decimal(0)
+                if payment_method == 'cash':
+                    total_amount_paid = cash_received
+                elif payment_method == 'online':
+                    total_amount_paid = online_received
+                elif payment_method == 'both':
+                    total_amount_paid = cash_received + online_received
+
                 # Update bill details
                 bill.customer = customer
                 bill.total_amount = final_total
@@ -874,6 +1038,7 @@ def update_bill(request, bill_id):
                 bill.rent_customer_amount = rent_customer_amount
                 bill.rent_company_amount = rent_company_amount
                 bill.payment_method = payment_method
+                bill.remaining_charges = final_total - total_amount_paid # Update remaining charges
                 bill.save()
 
                 for item_data in bill_items_data:
@@ -886,10 +1051,13 @@ def update_bill(request, bill_id):
                     inventory_item = get_object_or_404(InventoryItem, id=item_id)
                     
                     # Check stock before creating new BillItem and deducting
-                    if bill.status == 'paid_later': # Deduct stock for paid_later and advance bills immediately
+                    # Deduct stock if the bill's current status is 'paid_later' or 'shipped_pending'
+                    if bill.status in ['paid_later', 'shipped_pending']:
                         if inventory_item.total_stock_quantity < quantity:
                             transaction.set_rollback(True)
                             return JsonResponse({'success': False, 'message': f'Not enough stock for {inventory_item.name}. Available: {inventory_item.total_stock_quantity}'}, status=400)
+                        inventory_item.total_stock_quantity -= quantity
+                        inventory_item.save()
 
                     BillItem.objects.create(
                         bill=bill,
@@ -900,11 +1068,6 @@ def update_bill(request, bill_id):
                         discount_amount=item_discount_amount
                     )
                     
-                    # Deduct stock for new items if the bill is 'paid_later' or 'advance'
-                    if bill.status == 'paid_later':
-                        inventory_item.total_stock_quantity -= quantity
-                        inventory_item.save()
-
             return JsonResponse({'success': True, 'message': 'Bill updated successfully!'})
         except json.JSONDecodeError:
             return JsonResponse({'success': False, 'message': 'Invalid JSON data.'}, status=400)

@@ -3,8 +3,9 @@ from django.http import JsonResponse
 from .models import Wallet, WalletEntry
 from django.db import transaction
 from django.contrib import messages
-from datetime import date
+from datetime import date, datetime
 from django.core.paginator import Paginator
+from .models import DailyWalletSummary # Import the new model
 
 def get_wallet_balance():
     wallet, created = Wallet.objects.get_or_create(pk=1)
@@ -112,12 +113,29 @@ def wallet_home(request):
     entries = paginator.get_page(page_number)
 
     current_balance = get_wallet_balance()
+    today = date.today()
+    day_summary = DailyWalletSummary.objects.filter(date=today).first()
+    
+    day_started = False
+    day_ended = False
+
+    start_day_time = None
+    if day_summary:
+        if day_summary.start_balance is not None:
+            day_started = True
+            start_day_time = day_summary.start_balance
+        if day_summary.end_balance is not None:
+            day_ended = True
+
     context = {
         'selected_page': 'wallet',
         'entries': entries, # Pass the Page object
         'current_balance': current_balance,
         'transaction_type_choices': WalletEntry.TRANSACTION_TYPE_CHOICES,
         'page_obj': entries, # Pass the Page object with a generic name for pagination.html
+        'day_started': day_started,
+        'day_ended': day_ended,
+        'start_day_time': start_day_time,
     }
     return render(request, 'wallet/home.html', context)
 
@@ -175,3 +193,61 @@ def delete_wallet_entry(request, pk):
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
     return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=400)
+
+def set_start_day_balance(request):
+    if request.method == 'POST':
+        start_balance_str = request.POST.get('start_balance')
+        today = date.today()
+
+        try:
+            start_balance = Decimal(start_balance_str)
+            if start_balance < 0:
+                messages.error(request, 'Starting balance cannot be negative.')
+                return redirect('wallet_home')
+        except (ValueError, TypeError):
+            messages.error(request, 'Invalid starting balance provided.')
+            return redirect('wallet_home')
+
+        with transaction.atomic():
+            daily_summary, created = DailyWalletSummary.objects.get_or_create(date=today)
+            daily_summary.start_balance = start_balance
+            daily_summary.start_time = datetime.now() # Save the current time
+            daily_summary.save()
+
+            # Update the main Wallet's current balance
+            wallet = Wallet.objects.get_or_create(pk=1)[0]
+            wallet.current_balance = start_balance
+            wallet.save()
+
+            messages.success(request, 'Start day balance set successfully.')
+            return redirect('wallet_home')
+    messages.error(request, 'Invalid request.')
+    return redirect('wallet_home')
+
+def set_end_day_balance(request):
+    if request.method == 'POST':
+        end_balance_str = request.POST.get('end_balance')
+        today = date.today()
+
+        try:
+            end_balance = Decimal(end_balance_str)
+            if end_balance < 0:
+                messages.error(request, 'Ending balance cannot be negative.')
+                return redirect('wallet_home')
+        except (ValueError, TypeError):
+            messages.error(request, 'Invalid ending balance provided.')
+            return redirect('wallet_home')
+
+        with transaction.atomic():
+            try:
+                daily_summary = DailyWalletSummary.objects.get(date=today)
+                daily_summary.end_balance = end_balance
+                daily_summary.save()
+
+                messages.success(request, 'End day balance set successfully.')
+                return redirect('wallet_home')
+            except DailyWalletSummary.DoesNotExist:
+                messages.error(request, 'Start day balance not set for today. Please set the start day balance first.')
+                return redirect('wallet_home')
+    messages.error(request, 'Invalid request.')
+    return redirect('wallet_home')
