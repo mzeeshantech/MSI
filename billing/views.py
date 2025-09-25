@@ -34,10 +34,10 @@ def bulk_delete_bills(request):
                     try:
                         bill = Bill.objects.get(id=bill_id)
                         # Restore stock for each item in the bill
-                        for bill_item in bill.items.all():
-                            inventory_item = bill_item.item
-                            inventory_item.total_stock_quantity += bill_item.quantity
-                            inventory_item.save()
+                        # for bill_item in bill.items.all():
+                        #     inventory_item = bill_item.item
+                        #     inventory_item.total_stock_quantity += bill_item.quantity
+                        #     inventory_item.save()
                         bill.delete()
                         deleted_count += 1
                     except Bill.DoesNotExist:
@@ -107,6 +107,7 @@ def mark_bill_closed(request, bill_id):
             rent_customer_amount = Decimal(data.get('rent_customer_amount', 0))
             rent_company_amount = Decimal(data.get('rent_company_amount', 0))
 
+
             with transaction.atomic():                
                 # Deduct stock if not already deducted (i.e., if status was 'open' or 'advance')
                 if bill.status not in ['paid_later', 'shipped_pending']:
@@ -124,6 +125,10 @@ def mark_bill_closed(request, bill_id):
                 # additional_payment = current_total_paid - previous_total_paid
                 additional_payment = current_total_paid
 
+                prev_status = bill.status
+
+                
+
                 bill.amount_paid = bill.amount_paid + cash_received
                 bill.online_amount_paid = bill.online_amount_paid + online_received
                 bill.payment_method = payment_method
@@ -135,6 +140,11 @@ def mark_bill_closed(request, bill_id):
                 bill.status = 'closed'
                 bill.remaining_charges = Decimal(0) # Set remaining charges to 0
                 bill.save()
+
+                # if prev_status == "open":
+                #     additional_payment = (current_total_paid + previous_total_paid)
+                #     cash_received = bill.amount_paid
+                #     online_received = bill.online_amount_paid
 
                 # Add additional payment to wallet
                 if additional_payment > 0:
@@ -191,8 +201,8 @@ def mark_bill_shipped_pending(request, bill_id):
                 # additional_payment = current_total_paid - previous_total_paid
                 additional_payment = current_total_paid
 
-                bill.amount_paid = cash_received
-                bill.online_amount_paid = online_received
+                bill.amount_paid = bill.amount_paid + cash_received
+                bill.online_amount_paid = bill.online_amount_paid + online_received
                 bill.payment_method = payment_method
                 bill.rent_amount = rent_amount
                 bill.rent_payer = rent_payer
@@ -884,7 +894,7 @@ def generate_bill(request):
                     
                     # Deduct stock and add to wallet based on bill status at creation
                     if not is_booking and status != 'paid_later': # For 'open' bills
-                        inventory_item.total_stock_quantity -= quantity
+                        # inventory_item.total_stock_quantity -= quantity
                         inventory_item.save()
                     elif status == 'paid_later': # For 'paid_later' bills, deduct stock immediately
                         inventory_item.total_stock_quantity -= quantity
@@ -974,6 +984,8 @@ def update_bill(request, bill_id):
             payment_method = data.get('payment_method', 'cash')
             cash_received = Decimal(data.get('cash_received', 0))
             online_received = Decimal(data.get('online_received', 0))
+            is_booking = data.get('is_booking', False)
+
 
             if not customer_name:
                 return JsonResponse({'success': False, 'message': 'Customer name is required.'}, status=400)
@@ -985,10 +997,10 @@ def update_bill(request, bill_id):
                 bill = get_object_or_404(Bill, id=bill_id)
 
                 # Restore old stock quantities before updating
-                for old_bill_item in bill.items.all():
-                    inventory_item = old_bill_item.item
-                    inventory_item.total_stock_quantity += old_bill_item.quantity
-                    inventory_item.save()
+                # for old_bill_item in bill.items.all():
+                #     inventory_item = old_bill_item.item
+                #     inventory_item.total_stock_quantity += old_bill_item.quantity
+                #     inventory_item.save()
                 
                 # Clear existing bill items
                 bill.items.all().delete();
@@ -1040,11 +1052,12 @@ def update_bill(request, bill_id):
                 elif payment_method == 'both':
                     total_amount_paid = cash_received + online_received
 
+                total_amount_paid += bill.amount_paid + bill.online_amount_paid
                 # Update bill details
                 bill.customer = customer
                 bill.total_amount = final_total
-                bill.amount_paid = cash_received
-                bill.online_amount_paid = online_received
+                bill.amount_paid = bill.amount_paid + cash_received
+                bill.online_amount_paid = bill.online_amount_paid + online_received
                 bill.rent_amount = rent_amount
                 bill.rent_payer = rent_payer
                 bill.rent_customer_amount = rent_customer_amount
@@ -1064,7 +1077,8 @@ def update_bill(request, bill_id):
                     
                     # Check stock before creating new BillItem and deducting
                     # Deduct stock if the bill's current status is 'paid_later' or 'shipped_pending'
-                    if bill.status in ['paid_later', 'shipped_pending']:
+                    # 'paid_later', 
+                    if bill.status in ['shipped_pending']:
                         if inventory_item.total_stock_quantity < quantity:
                             transaction.set_rollback(True)
                             return JsonResponse({'success': False, 'message': f'Not enough stock for {inventory_item.name}. Available: {inventory_item.total_stock_quantity}'}, status=400)
@@ -1079,6 +1093,24 @@ def update_bill(request, bill_id):
                         discount_type=item_discount_type,
                         discount_amount=item_discount_amount
                     )
+
+                    total_amount = cash_received + online_received
+
+                    # print(cash_received, bill.status)
+                    # exit()
+                    if total_amount > 0:
+                        new_balance = update_wallet_balance(total_amount, False)
+                        WalletEntry.objects.create(
+                            transaction_type="sale",
+                            amount=total_amount,
+                            description=f"Update payment for Bill {bill.bill_number}",
+                            balance_after_transaction=new_balance,
+                            payment_mode=payment_method,
+                            cash_received=cash_received,
+                            online_received=online_received
+                        )
+                            
+
                     
             return JsonResponse({'success': True, 'message': 'Bill updated successfully!'})
         except json.JSONDecodeError:
@@ -1094,10 +1126,10 @@ def delete_bill(request, bill_id):
             bill = get_object_or_404(Bill, id=bill_id)
             with transaction.atomic():
                 # Restore stock for each item in the bill
-                for bill_item in bill.items.all():
-                    inventory_item = bill_item.item
-                    inventory_item.total_stock_quantity += bill_item.quantity
-                    inventory_item.save()
+                # for bill_item in bill.items.all():
+                #     inventory_item = bill_item.item
+                #     inventory_item.total_stock_quantity += bill_item.quantity
+                #     inventory_item.save()
                 bill.delete()
             return JsonResponse({'success': True, 'message': 'Bill deleted successfully!'})
         except Exception as e:

@@ -274,7 +274,7 @@
                     <input type="text" class="form-control form-control-sm me-1" id="dateRangePicker" name="date_range" title="Date Range Filter" placeholder="Select Date Range">
                 </div>
                 <input type="text" class="search-bar font-13" id="globalSearch" name="global_search" placeholder="Search by Customer Name or Bill No.">
-                <button type="button" class="btn btn-add ms-2 font-14" data-bs-toggle="modal" data-bs-target="#generateBillModal">
+                <button type="button" class="btn btn-add ms-2 font-14" data-bs-toggle="modal" data-bs-target="#generateBillModal" id="generateBillButton">
                     <i class="fas fa-file-invoice font-10"></i> {% if selected_page == 'advance_booking' %}Book Now{% else %}Generate Bill{% endif %}
                 </button>
                 <button type="button" class="btn btn-export ms-2 font-14" id="downloadExcelBtn">
@@ -360,6 +360,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <input type="hidden" id="bill_id" name="bill_id">
+                    <input type="hidden" id="bill_status" name="bill_status">
                     <div class="modal-body p-4">
                         <div class="row">
                             <div class="col-md-12 modal-section">
@@ -499,7 +500,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-6 modal-section">
+                            <div class="col-md-6 modal-section" id="payment_section" style="display: none;">
 
                                 <div class="mb-3" id="received_payment_div" style="display: none;">
                                     <h6 class="text-info"><i class="fas fa-money-check-alt"></i> Received Payment</h6>
@@ -1052,8 +1053,10 @@
                     plainFormData.cash_received = 0;
                 }
 
-                plainFormData.cash_received = (parseFloat($('#cash_received').val()) || 0) + (parseFloat($('#cash_received_readonly').val()) || 0);
-                plainFormData.online_received = (parseFloat($('#online_received').val()) || 0) + (parseFloat($('#online_received_readonly').val()) || 0);
+                // plainFormData.cash_received = (parseFloat($('#cash_received').val()) || 0) + (parseFloat($('#cash_received_readonly').val()) || 0);
+                // plainFormData.online_received = (parseFloat($('#online_received').val()) || 0) + (parseFloat($('#online_received_readonly').val()) || 0);
+                plainFormData.cash_received = (parseFloat($('#cash_received').val()) || 0);
+                plainFormData.online_received = (parseFloat($('#online_received').val()) || 0);
 
                 const billId = document.getElementById('bill_id').value;
                 let url = "{% url 'generate_bill' %}";
@@ -1093,6 +1096,7 @@
             generateBillModalElement.addEventListener('hidden.bs.modal', function () {
                 billForm.reset();
                 billForm.classList.remove('was-validated');
+                $('#payment_section').hide();
                 billItems = [];
                 renderBillItems();
                 resetAddItemForm(); // Use the new reset function
@@ -1135,6 +1139,7 @@
                 .then(data => {
                     if (data.success) {
                         const bill = data.bill;
+                        $('#bill_status').val(bill.status); // Set bill status in hidden input
                         // Populate customer details
                         $('#customer_name').val(bill.customer.name);
                         $('#customer_cnic').val(bill.customer.cnic);
@@ -1162,6 +1167,7 @@
 
                         // Show the received payment div
                         $('#received_payment_div').show();
+                        $('#payment_section').show();
 
                         // Populate bill items
                         billItems = bill.items.map(item => ({
@@ -1196,6 +1202,7 @@
                                     $('#generateBillSubmitBtn').prop('disabled', false);
                                 }
                                 else {
+                                    $('#payment_section').hide();
                                     $('#markBillClosedBtn').hide();
                                     $('#markShippedPendingBtn').hide();
                                     $('#generateBillSubmitBtn').prop('disabled', true); // Disable update button if bill is closed or cancelled
@@ -1203,8 +1210,7 @@
                                 
                                 // Open the modal
                                 const generateBillModal = new bootstrap.Modal(document.getElementById('generateBillModal'));
-                                generateBillModal.show();
-
+                                generateBillModal.show();                                
                     } else {
                         alert("Error fetching bill details: " + data.message);
                     }
@@ -1408,9 +1414,11 @@
                         rent_customer_amount: parseFloat($('#rent_customer_amount').val()) || 0,
                         rent_company_amount: parseFloat($('#rent_company_amount').val()) || 0,
                         payment_method: $('#payment_method').val(),
-                        cash_received: (parseFloat($('#cash_received').val()) || 0) || (parseFloat($('#cash_received_readonly').val()) || 0),
-                        online_received: (parseFloat($('#online_received').val()) || 0) || (parseFloat($('#online_received_readonly').val()) || 0),
+                        cash_received: (parseFloat($('#cash_received').val()) || 0),
+                        online_received: (parseFloat($('#online_received').val()) || 0),
                     };
+                    // || (parseFloat($('#cash_received_readonly').val()) || 0)
+                    // || (parseFloat($('#online_received_readonly').val()) || 0)
 
                     fetch(`/billing/mark_bill_shipped_pending/${billId}/`, {
                         method: 'POST',
@@ -1452,14 +1460,28 @@
                 }
 
                 if (confirm('Are you sure you want to mark this bill as closed? This action cannot be undone.')) {
+                    
+                    var cash_received = parseFloat($('#cash_received').val()) || 0;
+                    var online_received = parseFloat($('#online_received').val()) || 0;
+                    var bill_status = document.getElementById('bill_status').value
+
+                    // if (bill_status == "open") {
+                    //     cash_received = cash_received + (parseFloat(document.getElementById('cash_received_readonly').value) || 0)
+                    //     online_received = online_received + (parseFloat(document.getElementById('online_received_readonly').value) || 0)
+                    // }
+                    
                     const paymentData = {
                         rent_amount: parseFloat($('#rent_amount').val()) || 0,
                         rent_payer: $('#rent_payer').val(),
                         rent_customer_amount: parseFloat($('#rent_customer_amount').val()) || 0,
                         rent_company_amount: parseFloat($('#rent_company_amount').val()) || 0,
                         payment_method: $('#payment_method').val(),
-                        cash_received: parseFloat($('#cash_received').val()) || 0,
-                        online_received: parseFloat($('#online_received').val()) || 0,
+                        cash_received: cash_received,
+                        online_received: online_received,
+                        bill_status: bill_status,
+                        // cash_received_prev: parseFloat(document.getElementById('cash_received_readonly').value) || 0,
+                        // online_received_prev: parseFloat(document.getElementById('online_received_readonly').value) || 0,
+                        // bill_status: document.getElementById('bill_status').value
                     };
 
                     fetch(`/billing/mark_bill_closed/${billId}/`, {
