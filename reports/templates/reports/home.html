@@ -5,6 +5,7 @@
 
 {% block extra_head %}
     <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta2/dist/css/bootstrap-select.min.css">
     <style>
         .header {
             display: flex;
@@ -27,6 +28,10 @@
         .header h1 i { margin-right: 8px; }
 
         .form-label i { margin-right: 5px; }
+
+        .bootstrap-select:not([class*=col-]):not([class*=form-control]):not(.input-group-btn) {
+            width: 100%;
+        }
     </style>
 {% endblock %}
 
@@ -48,6 +53,15 @@
                             <option value="daily_sale">Daily Sale Report</option>
                             <option value="debit_credit">Debit/Credit Report</option>
                             <option value="stock">Stock Report</option>
+                            <option value="cnic_report">CNIC Report</option>
+                            <option value="rent_report">Rent Report</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="categorySelection" style="display: none;">
+                        <label for="categories" class="form-label"><i class="fas fa-tags"></i> Select Categories:</label>
+                        <select class="form-select" id="categories" name="categories" multiple>
+                            <option value="">-- Select Categories --</option>
+                            <!-- Options will be loaded here by JavaScript -->
                         </select>
                     </div>
                     <div class="mb-3">
@@ -59,4 +73,59 @@
             </div>
         </div>
     </div>
+
+    <script src="{% static 'js/jquery-3.6.0.min.js' %}"></script>    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta2/dist/js/bootstrap-select.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const reportTypeSelect = document.getElementById('reportType');
+            const categorySelectionDiv = document.getElementById('categorySelection');
+            const categoriesSelect = document.getElementById('categories');
+
+            // Initialize Bootstrap-select
+            $(categoriesSelect).selectpicker();
+
+            function toggleCategorySelection() {
+                if (reportTypeSelect.value === 'stock') {
+                    console.log("Report type is stock. Showing category selection.");
+                    categorySelectionDiv.style.display = 'block';
+                    categoriesSelect.setAttribute('required', 'required');
+                    // Fetch categories if not already loaded or if the first option is the default placeholder
+                    if (categoriesSelect.options.length === 0 || categoriesSelect.options[0].value === '') {
+                        console.log("Fetching categories...");
+                        fetch('/reports/get_categories/')
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error(`HTTP error! status: ${response.status}`);
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                                console.log("Categories fetched:", data);
+                                categoriesSelect.innerHTML = '<option value="">-- Select Categories --</option>'; // Clear existing options and add default
+                                data.forEach(category => {
+                                    const option = document.createElement('option');
+                                    option.value = category.id;
+                                    option.textContent = category.name;
+                                    categoriesSelect.appendChild(option);
+                                });
+                                $(categoriesSelect).selectpicker('refresh'); // Refresh Bootstrap-select
+                            })
+                            .catch(error => console.error('Error fetching categories:', error));
+                    }
+                } else {
+                    console.log("Report type is not stock. Hiding category selection.");
+                    categorySelectionDiv.style.display = 'none';
+                    categoriesSelect.removeAttribute('required');
+                    categoriesSelect.innerHTML = '<option value="">-- Select Categories --</option>'; // Clear options when hidden
+                    $(categoriesSelect).selectpicker('refresh'); // Refresh Bootstrap-select
+                }
+            }
+
+            reportTypeSelect.addEventListener('change', toggleCategorySelection);
+
+            // Initial call to set visibility based on default selected value
+            toggleCategorySelection();
+        });
+    </script>
 {% endblock %}

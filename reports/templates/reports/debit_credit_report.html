@@ -20,46 +20,29 @@
     <table>
         <thead>
             <tr>
-                <th>Transaction Type</th>
-                <th>Payment Mode</th>
+                <th>Transaction Type</th>                
                 <th>Total Amount</th>
             </tr>
         </thead>
         <tbody>
-            {% for entry in debit_credit_data.wallet_entries %}
+            {% for key, entry in debit_credit_data.wallet_entries.items %}
             <tr>
-                <td>{{ entry.transaction_type }}</td>
-                <td>{{ entry.payment_mode }}</td>
-                <td>{{ entry.total_amount|floatformat:2 }}</td>
+                <td>{{ key }}</td>
+                <td>{{ entry|floatformat:2 }}</td>
             </tr>
-            {% empty %}
-            <tr>
-                <td colspan="3">No wallet entries for this date.</td>
-            </tr>
+            
             {% endfor %}
+
+            <tr>
+                <td>Expenses</td>
+                <td>{{ debit_credit_data.total_expense_sum|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <td>Rent</td>
+                <td>{{ debit_credit_data.total_rent_amount|floatformat:2 }}</td>
+            </tr>
         </tbody>
     </table>
 
-    <h2>Expenses</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Description</th>
-                <th>Total Amount</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for expense in debit_credit_data.expenses %}
-            <tr>
-                <td>{{ expense.description }}</td>
-                <td>{{ expense.total_amount|floatformat:2 }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="2">No expenses for this date.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
 </body>
 </html>

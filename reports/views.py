@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.db.models import Sum, F, ExpressionWrapper, DecimalField
 from django.db.models.functions import Coalesce
-from billing.models import BillItem, Bill
+from billing.models import BillItem, Bill, Customer
 from .models import DailySaleSummary
 from wallet.models import *
 from billing.models import *
@@ -18,6 +18,13 @@ from weasyprint import HTML
 from django.template.loader import render_to_string
 from stock.models import InventoryItem # Import InventoryItem for stock report
 import json # Import json to parse category_ids
+from django.http import JsonResponse
+from stock.models import InventoryCategory # Import InventoryCategory
+from django.db.models import Sum, Case, When, DecimalField, F, Value
+
+def get_categories(request):
+    categories = InventoryCategory.objects.all().values('id', 'name')
+    return JsonResponse(list(categories), safe=False)
 
 def reports_home(request):
     selected_date_str = request.GET.get('date')
@@ -69,7 +76,7 @@ def download_report(request):
             selected_date = timezone.localdate() # Default to today's date
 
         debit_credit_data = generate_debit_credit_report(selected_date)
-        
+        print(f"debit_credit_data = {debit_credit_data}")
         context = {
             'report_date': selected_date,
             'debit_credit_data': debit_credit_data,
@@ -85,17 +92,11 @@ def download_report(request):
         
         return response
     elif report_type == 'stock':
-        category_ids_str = request.GET.get('category_ids')
-        category_ids = []
-        if category_ids_str:
-            try:
-                category_ids = json.loads(category_ids_str)
-            except json.JSONDecodeError:
-                return HttpResponseBadRequest("Invalid category_ids format.")
+        category_ids = request.GET.getlist('categories') # Changed from 'category_ids' to 'categories'
         
         stock_data = generate_stock_report(category_ids)
-        
         context = {
+            'report_date': timezone.localdate(),
             'stock_data': stock_data,
         }
         
@@ -108,6 +109,31 @@ def download_report(request):
         response.write(pdf_file)
         
         return response
+    elif report_type == 'cnic_report':
+        selected_date_str = request.GET.get('date')
+        if selected_date_str:
+            selected_date = date.fromisoformat(selected_date_str)
+        else:
+            selected_date = timezone.localdate() # Default to today's date
+
+        cnic_data = generate_cnic_report(selected_date)
+        
+        context = {
+            'report_date': selected_date,
+            'cnic_data': cnic_data,
+        }
+        
+        html_string = render_to_string('reports/cnic_report.html', context)
+        
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'inline; filename="cnic_report_{selected_date.isoformat()}.pdf"'
+        
+        pdf_file = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf()
+        response.write(pdf_file)
+        
+        return response
+    elif report_type == 'rent_report':
+        return rent_report_pdf(request)
     else:
         return HttpResponseBadRequest("Invalid report type selected.")
 
@@ -160,34 +186,69 @@ def generate_debit_credit_report(report_date=None):
         report_date = date.today()
 
 
-    entries = (WalletEntry.objects
-        .all()
-        .values("transaction_type", "payment_mode")
-        .annotate(total_amount=Sum("amount"))
+    entries = (
+        WalletEntry.objects
+        .filter(transaction_date=report_date)
+        .aggregate(
+            cash=Sum(
+                Case(
+                    When(payment_mode="cash", then=F("amount")),
+                    When(payment_mode="both", then=F("cash_received")),
+                    default=Value(0),
+                    output_field=DecimalField(),
+                )
+            ),
+            online=Sum(
+                Case(
+                    When(payment_mode="online", then=F("amount")),
+                    When(payment_mode="both", then=F("online_received")),
+                    default=Value(0),
+                    output_field=DecimalField(),
+                )
+            ),
+        )
     )
 
     print(f"entries = {entries}")
 
-    expenses = (Expense.objects
+    total_expense_sum = (Expense.objects
         .filter(created_at__date=report_date)
-        .values("description")
-        .annotate(total_amount=Sum("amount"))
+        .aggregate(total_sum=Sum("amount"))["total_sum"] or Decimal('0.00')
     )
 
-    return {"wallet_entries": list(entries), "expenses": list(expenses)}
+    rent_bills_amount = Bill.objects.filter(
+        created_at__date=report_date,
+        status='closed',
+        rent_amount__isnull=False
+    ).exclude(rent_amount=0).select_related('customer')
+
+    total_rent_amount = rent_bills_amount.aggregate(total_rent=Sum('rent_amount'))['total_rent'] or Decimal('0.00')
+
+    return {"wallet_entries": entries, "total_expense_sum": total_expense_sum, "total_rent_amount": total_rent_amount}
 
 def generate_stock_report(category_ids):
+
     items = (InventoryItem.objects
         .filter(category_id__in=category_ids)
         .values(
-            category=F("category__name"),
-            sku=F("sku"),
-            name=F("name"),
+            category_name=F("category__name"), # Renamed to avoid conflict
+            item_sku=F("sku"), # Renamed to avoid conflict with model field
+            item_name=F("name"),
             quantity=F("total_stock_quantity"),
             uom=F("unit_of_measure"),
+            item_sale_price=F("sale_price"),
+            item_last_system_sale_price=F("last_system_sale_price"),
         )
     )
-    return items
+
+    grouped_items = {}
+    for item in items:
+        category_name = item['category_name']
+        if category_name not in grouped_items:
+            grouped_items[category_name] = []
+        grouped_items[category_name].append(item)
+
+    return grouped_items
 
 
 def generate_cnic_report(report_date=None):
@@ -200,3 +261,44 @@ def generate_cnic_report(report_date=None):
         .distinct()
     )
     return customers
+
+def rent_report_pdf(request):
+    selected_date_str = request.GET.get('date')
+    if not selected_date_str:
+        return HttpResponseBadRequest("Date is required for Rent Report.")
+
+    selected_date = date.fromisoformat(selected_date_str)
+
+    # Fetch closed bills for the selected date with rent details
+    rent_bills = Bill.objects.filter(
+        created_at__date=selected_date,
+        status='closed',
+        rent_amount__isnull=False
+    ).exclude(rent_amount=0).select_related('customer')
+
+    report_data = []
+    for bill in rent_bills:
+        report_data.append({
+            'bill_number': bill.bill_number,
+            'rent_total_amount': bill.rent_amount,
+            'rent_payer': bill.rent_payer,
+            'paid_by_client': bill.rent_customer_amount,
+            'paid_by_company': bill.rent_company_amount,
+            'address': bill.customer.address if bill.customer else 'N/A',
+            'customer_name': bill.customer.name if bill.customer else 'N/A',
+        })
+
+    context = {
+        'report_date': selected_date,
+        'rent_data': report_data,
+    }
+
+    html_string = render_to_string('reports/rent_report.html', context)
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="rent_report_{selected_date.isoformat()}.pdf"'
+
+    pdf_file = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf()
+    response.write(pdf_file)
+
+    return response
