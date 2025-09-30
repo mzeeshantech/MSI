@@ -75,7 +75,7 @@ def wallet_home(request):
         
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             # For AJAX requests, return JSON with updated data
-            entries_list = WalletEntry.objects.all().order_by("-id")
+            entries_list = WalletEntry.objects.filter(transaction_date=date.today()).order_by("-id")
             paginator = Paginator(entries_list, 10)
             page_number = request.GET.get('page')
             entries = paginator.get_page(page_number)
@@ -107,7 +107,7 @@ def wallet_home(request):
             # For non-AJAX requests, redirect
             return redirect('wallet_home')
 
-    entries_list = WalletEntry.objects.all().order_by("-id")
+    entries_list = WalletEntry.objects.filter(transaction_date=date.today()).order_by("-id")
     paginator = Paginator(entries_list, 10) # Show 10 entries per page
     page_number = request.GET.get('page')
     entries = paginator.get_page(page_number)
@@ -161,7 +161,7 @@ def delete_wallet_entry(request, pk):
                 entry.delete()
 
                 # After deletion, fetch updated data for frontend rendering
-                entries_list = WalletEntry.objects.all().order_by("-id")
+                entries_list = WalletEntry.objects.filter(transaction_date=date.today()).order_by("-id")
                 paginator = Paginator(entries_list, 10)
                 page_number = request.GET.get('page')
                 entries = paginator.get_page(page_number)

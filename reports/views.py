@@ -167,8 +167,11 @@ def get_daily_sale_report(date=None):
     results = []
     for entry in bill_items:
         # Net sales after subtracting returns
-        net_qty = (entry["total_sale"] or 0) - (entry["returned_qty"] or 0)
-        net_amount = (entry["total_amount"] or 0) - (entry["returned_amount"] or 0)
+        # net_qty = (entry["total_sale"] or 0) - (entry["returned_qty"] or 0)
+        # net_amount = (entry["total_amount"] or 0) - (entry["returned_amount"] or 0)
+
+        net_qty = (entry["total_sale"] or 0) 
+        net_amount = (entry["total_amount"] or 0)
 
         results.append({
             "category": entry["category"],

@@ -10,6 +10,19 @@ from django.db.models import Q # Import Q object
 from .models import Expense
 import datetime
 from django.urls import reverse
+from wallet.models import Wallet, WalletEntry
+from decimal import Decimal
+from datetime import date
+
+def update_wallet_balance(amount, is_deduction=True):
+    wallet = Wallet.objects.get_or_create(pk=1)[0]
+    amount_decimal = Decimal(str(amount)) # Convert float to Decimal
+    if is_deduction:
+        wallet.current_balance -= amount_decimal
+    else:
+        wallet.current_balance += amount_decimal
+    wallet.save()
+    return wallet.current_balance
 
 def expenses_home(request):
     if request.method == 'POST':
@@ -37,6 +50,19 @@ def expenses_home(request):
                 created_at=created_at,
                 approved_by=approved_by
             )
+
+            # Handle new entry
+            new_balance = update_wallet_balance(amount, True)
+            WalletEntry.objects.create(
+                transaction_type="expense",
+                amount=amount,
+                description=description,
+                balance_after_transaction=new_balance,
+                transaction_date=date.today()
+            )
+
+
+
         return redirect('expenses_home')
 
     query = request.GET.get('query', '')
@@ -46,7 +72,8 @@ def expenses_home(request):
 
     if query:
         expenses_list = expenses_list.filter(
-            Q(description__icontains=query) | Q(approved_by__icontains=query)
+            Q(description__icontains=query) | Q(approved_by__icontains=query),
+            created_at__date=datetime.date.today()
         )
 
     paginator = Paginator(expenses_list, 10) 

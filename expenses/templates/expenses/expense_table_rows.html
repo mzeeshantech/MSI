@@ -13,9 +13,9 @@
     <td>{{ expense.created_at|date:"Y-m-d" }}</td>
     <td>{{ expense.approved_by }}</td>
     <td class="action-buttons">
-        <button type="button" class="btn btn-primary action-btn btn-edit-expense" data-id="{{ expense.id }}" data-bs-toggle="modal" data-bs-target="#addItemModal" title="Edit">
+        <!-- <button type="button" class="btn btn-primary action-btn btn-edit-expense" data-id="{{ expense.id }}" data-bs-toggle="modal" data-bs-target="#addItemModal" title="Edit">
             <i class="fas fa-edit font-10"></i>
-        </button>
+        </button> -->
         <button type="button" class="btn btn-danger action-btn delete-expense-btn" data-id="{{ expense.id }}" title="Delete">
             <i class="fas fa-trash-alt font-10"></i>
         </button>
