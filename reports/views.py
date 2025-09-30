@@ -227,7 +227,16 @@ def generate_debit_credit_report(report_date=None):
 
     total_rent_amount = rent_bills_amount.aggregate(total_rent=Sum('rent_amount'))['total_rent'] or Decimal('0.00')
 
-    return {"wallet_entries": entries, "total_expense_sum": total_expense_sum, "total_rent_amount": total_rent_amount}
+    pending_bills = Bill.objects.filter(
+        created_at__date=report_date,
+        status='shipped_pending',
+    ).exclude(total_amount=F('amount_paid')).select_related('customer')
+
+    total_pending_amount = pending_bills.aggregate(
+        total_pending=Sum(F('total_amount') - F('amount_paid'))
+    )['total_pending'] or Decimal('0.00')
+
+    return {"wallet_entries": entries, "total_expense_sum": total_expense_sum, "total_rent_amount": total_rent_amount, "total_pending_amount": total_pending_amount}
 
 def generate_stock_report(category_ids):
 
